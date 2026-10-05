@@ -178,6 +178,9 @@ Ran `spike/craigslist.mjs` from this machine (home connection, WSL).
 
 - 2026-10-05: login = name + easy key (word + 2 digits), self sign-up at /register, DB sessions, throttled guessing, admin Users page, activity attribution.
 
+- 2026-10-05: Gmail (Workspace, read-only) per user — auto-logs Craigslist pitches + thread replies, 60-day backfill,
+  Unmatched queue. Waiting on Google Cloud OAuth client from the user.
+
 **Next up**
 1. Schedule the fetch every 3–4 h on this machine (cron → `/api/fetch`, app running via `npm start`).
 2. Pitch templates with `{{company}}`/`{{title}}` + copy-to-clipboard on the listing page.

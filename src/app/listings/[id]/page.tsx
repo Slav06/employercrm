@@ -40,11 +40,14 @@ export default async function ListingPage({ params }: PageProps<'/listings/[id]'
 
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div className="min-w-0">
-          <h1 className="text-xl font-semibold">{l.title}</h1>
+          <h1 className="text-xl font-semibold">
+            {l.title} <span className="text-sm font-normal text-zinc-400">#{l.id}</span>
+          </h1>
           <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-zinc-600">
             <StageBadge stage={l.stage} />
             <span className="font-medium text-zinc-900">{l.company ?? 'Company not listed'}</span>
             {ownerName && <span>· {ownerName}</span>}
+            {l.relayEmail && <span className="text-xs text-zinc-400">· {l.relayEmail}</span>}
             <span>
               {[l.city, l.region, l.postalCode].filter(Boolean).join(', ') || l.location}
             </span>
@@ -232,6 +235,7 @@ function TimelineItem({ a, by }: { a: Activity; by: string | null }) {
           <span className="text-xs text-zinc-400">
             {fmtDate(a.at, true)}
             {by && ` · ${by}`}
+            {meta.gmail && ' · from Gmail'}
           </span>
         </div>
         {a.summary && <div className="whitespace-pre-wrap text-zinc-600">{a.summary}</div>}

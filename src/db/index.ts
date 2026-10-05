@@ -30,7 +30,7 @@ async function init(): Promise<DB> {
     const { PGlite } = await import('@electric-sql/pglite');
     const { drizzle } = await import('drizzle-orm/pglite');
     const { migrate } = await import('drizzle-orm/pglite/migrator');
-    const dir = path.join(process.cwd(), 'data', 'pglite');
+    const dir = process.env.PGLITE_DIR ?? path.join(process.cwd(), 'data', 'pglite');
     mkdirSync(path.dirname(dir), { recursive: true });
     const client = new PGlite(dir);
     db = drizzle({ client, schema });

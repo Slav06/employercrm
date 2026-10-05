@@ -114,6 +114,8 @@ export const listings = pgTable(
     ownerId: integer('owner_id').references(() => users.id, { onDelete: 'set null' }),
     contactName: text('contact_name'),
     contactEmail: text('contact_email'),
+    // Craigslist anonymized reply address (xxxx@job.craigslist.org), learned from sent pitches.
+    relayEmail: text('relay_email'),
     contactPhone: text('contact_phone'),
     website: text('website'),
     notes: text('notes'),
@@ -128,6 +130,8 @@ export const listings = pgTable(
     index('listings_posted_idx').on(t.postedAt),
     index('listings_follow_up_idx').on(t.nextFollowUpAt),
     index('listings_owner_idx').on(t.ownerId),
+    index('listings_post_id_idx').on(t.postId),
+    index('listings_relay_idx').on(sql`lower(${t.relayEmail})`),
   ],
 );
 
@@ -149,6 +153,53 @@ export const activities = pgTable(
   (t) => [index('activities_listing_idx').on(t.listingId), index('activities_type_at_idx').on(t.type, t.at)],
 );
 
+// One connected Google Workspace mailbox per user (read-only). Refresh token is AES-GCM encrypted.
+export const gmailAccounts = pgTable('gmail_accounts', {
+  id: serial('id').primaryKey(),
+  userId: integer('user_id')
+    .notNull()
+    .unique()
+    .references(() => users.id, { onDelete: 'cascade' }),
+  email: text('email').notNull(),
+  refreshTokenEnc: text('refresh_token_enc').notNull(),
+  accessToken: text('access_token'),
+  accessTokenExpiresAt: timestamp('access_token_expires_at', { withTimezone: true }),
+  historyId: text('history_id'), // Gmail history cursor for incremental sync
+  backfillDone: boolean('backfill_done').notNull().default(false),
+  lastSyncAt: timestamp('last_sync_at', { withTimezone: true }),
+  lastError: text('last_error'),
+  connectedAt: timestamp('connected_at', { withTimezone: true }).notNull().defaultNow(),
+});
+
+// Only CRM-related mail is stored: pitches to listings (matched or not) and messages in their threads.
+export const emailMessages = pgTable(
+  'email_messages',
+  {
+    id: serial('id').primaryKey(),
+    accountId: integer('account_id')
+      .notNull()
+      .references(() => gmailAccounts.id, { onDelete: 'cascade' }),
+    userId: integer('user_id').references(() => users.id, { onDelete: 'set null' }),
+    gmailId: text('gmail_id').notNull(),
+    threadId: text('thread_id').notNull(),
+    direction: text('direction').$type<'sent' | 'received'>().notNull(),
+    fromAddr: text('from_addr'),
+    toAddrs: text('to_addrs'),
+    subject: text('subject'),
+    snippet: text('snippet'),
+    at: timestamp('at', { withTimezone: true }).notNull(),
+    listingId: integer('listing_id').references(() => listings.id, { onDelete: 'set null' }),
+    matchedBy: text('matched_by'), // link | relay | contact | subject | thread | manual
+    activityId: integer('activity_id').references(() => activities.id, { onDelete: 'set null' }),
+    dismissed: boolean('dismissed').notNull().default(false),
+  },
+  (t) => [
+    uniqueIndex('email_messages_account_gmail_idx').on(t.accountId, t.gmailId),
+    index('email_messages_thread_idx').on(t.accountId, t.threadId),
+    index('email_messages_listing_idx').on(t.listingId),
+  ],
+);
+
 export const fetchRuns = pgTable('fetch_runs', {
   id: serial('id').primaryKey(),
   searchId: integer('search_id').references(() => searches.id, { onDelete: 'cascade' }),
@@ -165,3 +216,5 @@ export type Search = typeof searches.$inferSelect;
 export type Listing = typeof listings.$inferSelect;
 export type Activity = typeof activities.$inferSelect;
 export type FetchRun = typeof fetchRuns.$inferSelect;
+export type GmailAccount = typeof gmailAccounts.$inferSelect;
+export type EmailMessage = typeof emailMessages.$inferSelect;

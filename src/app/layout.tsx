@@ -3,6 +3,8 @@ import { Geist, Geist_Mono } from 'next/font/google';
 import Link from 'next/link';
 import { logout } from '@/app/auth-actions';
 import { getUser } from '@/lib/auth';
+import { gmailConfigured } from '@/lib/gmail/google';
+import { unmatchedCount } from '@/lib/gmail/sync';
 import './globals.css';
 
 const geistSans = Geist({ variable: '--font-geist-sans', subsets: ['latin'] });
@@ -23,7 +25,13 @@ const NAV = [
 
 export default async function RootLayout({ children }: LayoutProps<'/'>) {
   const user = await getUser();
-  const nav = user?.role === 'admin' ? [...NAV, { href: '/users', label: 'Users' }] : NAV;
+  const unmatched = user && gmailConfigured() ? await unmatchedCount() : 0;
+  const nav = [
+    ...NAV,
+    ...(unmatched ? [{ href: '/email', label: `Unmatched (${unmatched})` }] : []),
+    ...(user?.role === 'admin' ? [{ href: '/users', label: 'Users' }] : []),
+    { href: '/settings', label: 'Settings' },
+  ];
   return (
     <html lang="en" className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}>
       <body className="min-h-full font-sans">

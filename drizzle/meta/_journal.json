@@ -29,6 +29,13 @@
       "when": 1791216730057,
       "tag": "0003_listing_owner_drop_qualified",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1791218698968,
+      "tag": "0004_gmail",
+      "breakpoints": true
     }
   ]
 }

@@ -51,6 +51,32 @@ Sign in with **your name + a key** — a word and 2 numbers, e.g. `tiger42` (cas
 3. When they answer → **Log reply** (stage → *Replied*, follow-up due today).
 4. Move through *Meeting → Proposal → Won/Lost* on the listing page; see everything on **Pipeline**.
 
+## Gmail (company Workspace)
+
+Each user connects their own company Gmail on **Settings** (read-only). The CRM then:
+
+- logs every email you send to a `…@job.craigslist.org` address (or to an address found in a posting) as a
+  **Pitch** on that listing — matched by the posting link in the email, the relay address, the business's
+  email, or an exact title match — and remembers the relay address on the listing;
+- logs anything else in that email thread as **Replies** (theirs) or follow-up pitches (yours);
+- imports the last 60 days on connect, then syncs each mailbox at most every 5 minutes whenever someone
+  opens the Inbox, on **Sync now**, and from a daily Vercel cron (`/api/gmail/sync`, Bearer `CRON_SECRET`).
+- Pitches it can't match land in **Unmatched** (nav) to be linked by hand; unrelated mail is never stored.
+
+### One-time Google setup (Workspace admin)
+
+1. https://console.cloud.google.com → create a project in your company's organization.
+2. **APIs & Services → Library** → enable **Gmail API**.
+3. **OAuth consent screen** → User type **Internal** (no Google review, tokens don't expire), app name
+   "EmployerCRM", add scopes `openid`, `email`, `…/auth/gmail.readonly`.
+4. **Credentials → Create credentials → OAuth client ID → Web application**. Authorized redirect URIs:
+   `https://employercrm.vercel.app/api/gmail/callback` and `http://localhost:3000/api/gmail/callback`.
+5. Add the client ID/secret to Vercel (and optionally `GOOGLE_WORKSPACE_DOMAIN`), then redeploy:
+   `vercel env add GOOGLE_CLIENT_ID production` / `GOOGLE_CLIENT_SECRET` → `vercel deploy --prod`.
+
+`GMAIL_TOKEN_KEY` (encrypts stored Google tokens) and `CRON_SECRET` are already set in Vercel. Changing
+`GMAIL_TOKEN_KEY` disconnects everyone. Tests: `npm run test:gmail`.
+
 ## Deployment
 
 - **Live:** https://employercrm.vercel.app — sign in with a per-user secret key (marked `noindex` too).

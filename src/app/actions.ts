@@ -1,11 +1,12 @@
 'use server';
 
-import { and, eq, isNull } from 'drizzle-orm';
+import { eq } from 'drizzle-orm';
 import { revalidatePath } from 'next/cache';
 import { getDb } from '@/db';
-import { activities, CHANNELS, listings, searches, type Stage } from '@/db/schema';
+import { activities, CHANNELS, listings, searches } from '@/db/schema';
 import { requireUser } from '@/lib/auth';
-import { isStage, stageIndex } from '@/lib/format';
+import { isStage } from '@/lib/format';
+import { claim, moveStage, recordPitch, recordReply } from '@/lib/pipeline';
 
 // Server Actions are reachable by direct POST, so every action checks the key itself.
 
@@ -18,41 +19,10 @@ const id = (f: FormData, k = 'id') => {
   if (!Number.isInteger(n) || n <= 0) throw new Error(`Invalid ${k}`);
   return n;
 };
-const daysFromNow = (days: number) => new Date(Date.now() + days * 86400_000);
 
 function refresh(listingId?: number) {
   revalidatePath('/', 'layout');
   if (listingId) revalidatePath(`/listings/${listingId}`);
-}
-
-// First person to work a lead becomes its user; later actions by others don't change it.
-async function claim(listingId: number, userId: number) {
-  const db = await getDb();
-  await db
-    .update(listings)
-    .set({ ownerId: userId })
-    .where(and(eq(listings.id, listingId), isNull(listings.ownerId)));
-}
-
-async function moveStage(listingId: number, to: Stage, userId: number, note?: string | null) {
-  const db = await getDb();
-  const [cur] = await db.select({ stage: listings.stage }).from(listings).where(eq(listings.id, listingId));
-  if (!cur || cur.stage === to) return;
-  await db.update(listings).set({ stage: to, updatedAt: new Date() }).where(eq(listings.id, listingId));
-  await db.insert(activities).values({
-    listingId,
-    type: 'stage',
-    userId,
-    summary: note ?? null,
-    meta: { from: cur.stage, to },
-  });
-}
-
-// Only moves forward (e.g. a reply on a "meeting" listing stays at meeting).
-async function advanceTo(listingId: number, to: Stage, userId: number) {
-  const db = await getDb();
-  const [cur] = await db.select({ stage: listings.stage }).from(listings).where(eq(listings.id, listingId));
-  if (cur && stageIndex(cur.stage) < stageIndex(to)) await moveStage(listingId, to, userId);
 }
 
 export async function setStage(formData: FormData) {
@@ -70,40 +40,27 @@ export async function logPitch(formData: FormData) {
   const listingId = id(formData);
   const channel = str(formData, 'channel') ?? 'cl_reply';
   if (!(CHANNELS as readonly string[]).includes(channel)) throw new Error('Invalid channel');
-  const followUpDays = Number(str(formData, 'followUpDays') ?? 3);
-  const db = await getDb();
-  await db.insert(activities).values({
+  await recordPitch({
     listingId,
-    type: 'pitch',
     userId: user.id,
     channel,
     summary: str(formData, 'summary'),
     meta: { to: str(formData, 'to') },
+    followUpDays: Number(str(formData, 'followUpDays') ?? 3),
   });
-  await advanceTo(listingId, 'pitched', user.id);
-  await claim(listingId, user.id);
-  if (followUpDays > 0) {
-    await db.update(listings).set({ nextFollowUpAt: daysFromNow(followUpDays) }).where(eq(listings.id, listingId));
-  }
   refresh(listingId);
 }
 
 export async function logReply(formData: FormData) {
   const user = await requireUser();
   const listingId = id(formData);
-  const db = await getDb();
-  await db.insert(activities).values({
+  await recordReply({
     listingId,
-    type: 'reply',
     userId: user.id,
     channel: str(formData, 'channel') ?? 'email',
     summary: str(formData, 'summary'),
     meta: { from: str(formData, 'from') },
   });
-  await advanceTo(listingId, 'replied', user.id);
-  await claim(listingId, user.id);
-  // A reply means the ball is in our court: due today unless told otherwise.
-  await db.update(listings).set({ nextFollowUpAt: new Date() }).where(eq(listings.id, listingId));
   refresh(listingId);
 }
 

@@ -1,18 +1,24 @@
 import { and, asc, desc, eq, ilike, isNull, or, sql, type SQL } from 'drizzle-orm';
 import Link from 'next/link';
+import { after } from 'next/server';
 import { StageBadge } from '@/components/stage-badge';
 import { getDb } from '@/db';
 import { requireUser } from '@/lib/auth';
 import { listings, STAGES, users } from '@/db/schema';
 import { AREAS, CATEGORIES } from '@/db/seed';
 import { ago, isStage, STAGE_LABEL } from '@/lib/format';
+import { gmailConfigured } from '@/lib/gmail/google';
+import { syncAccounts } from '@/lib/gmail/sync';
 
 export const dynamic = 'force-dynamic';
+export const maxDuration = 300;
 
 const PAGE_SIZE = 100;
 
 export default async function Inbox({ searchParams }: PageProps<'/listings'>) {
   await requireUser();
+  // Opening the Inbox keeps everyone's Gmail fresh (each mailbox at most every 5 min), after the page is sent.
+  if (gmailConfigured()) after(() => syncAccounts());
   const sp = await searchParams;
   const one = (k: string) => (typeof sp[k] === 'string' ? (sp[k] as string) : '');
   const stage = one('stage') || 'new';
