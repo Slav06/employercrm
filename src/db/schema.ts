@@ -1,3 +1,4 @@
+import { sql } from 'drizzle-orm';
 import {
   boolean,
   index,
@@ -7,6 +8,7 @@ import {
   serial,
   text,
   timestamp,
+  uniqueIndex,
 } from 'drizzle-orm/pg-core';
 
 // Pipeline for pitching our services to businesses that are hiring.
@@ -31,16 +33,44 @@ export const CHANNELS = ['cl_reply', 'email', 'phone', 'text', 'website', 'linke
 export const ROLES = ['admin', 'member'] as const;
 export type Role = (typeof ROLES)[number];
 
-// Each user logs in with their own secret key (only its SHA-256 is stored).
-export const users = pgTable('users', {
+// Users sign in with name + an easy key (word + 2 digits, e.g. tiger42). Keys are
+// stored as salted scrypt hashes; the browser only ever holds a session token.
+export const users = pgTable(
+  'users',
+  {
+    id: serial('id').primaryKey(),
+    name: text('name').notNull(),
+    role: text('role').$type<Role>().notNull().default('member'),
+    keyHash: text('key_hash').notNull(),
+    active: boolean('active').notNull().default(true),
+    selfRegistered: boolean('self_registered').notNull().default(false),
+    lastSeenAt: timestamp('last_seen_at', { withTimezone: true }),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [uniqueIndex('users_name_lower_idx').on(sql`lower(${t.name})`)],
+);
+
+export const sessions = pgTable('sessions', {
   id: serial('id').primaryKey(),
-  name: text('name').notNull(),
-  role: text('role').$type<Role>().notNull().default('member'),
-  keyHash: text('key_hash').notNull().unique(),
-  active: boolean('active').notNull().default(true),
-  lastSeenAt: timestamp('last_seen_at', { withTimezone: true }),
+  tokenHash: text('token_hash').notNull().unique(),
+  userId: integer('user_id')
+    .notNull()
+    .references(() => users.id, { onDelete: 'cascade' }),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 });
+
+// Failed logins and sign-ups, for throttling guesses against short keys.
+export const authAttempts = pgTable(
+  'auth_attempts',
+  {
+    id: serial('id').primaryKey(),
+    kind: text('kind').$type<'login_fail' | 'register'>().notNull(),
+    name: text('name'),
+    ip: text('ip'),
+    at: timestamp('at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index('auth_attempts_kind_at_idx').on(t.kind, t.at)],
+);
 
 export const searches = pgTable('searches', {
   id: serial('id').primaryKey(),

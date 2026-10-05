@@ -31,12 +31,17 @@ It opens one page every 3 s and at most 60 new listings per search per run (`CL_
 
 ## Users & login
 
-Every user has their own secret key (`crm_…`). Sign in by pasting it at `/login`, or open the one-click
-login link `/auth?key=…`. The session lasts a year. Only a SHA-256 of each key is stored, so a lost key
-can't be recovered — an admin issues a new one (which also kills the old one).
+Sign in with **your name + a key** — a word and 2 numbers, e.g. `tiger42` (case doesn't matter).
 
-- **Admins** manage people on the **Users** page: add user (key shown once), new key, turn off, change role.
-- **First admin / locked out:** `npm run user:add -- "Name" admin` (uses `.env.local`, prints key + link).
+- **Sign up yourself** at `/register`: pick a name and key, you're in as a member. Anyone who has the URL can
+  do this.
+- **One-click link:** `/auth?name=Maria&key=tiger42` signs you in. Sessions last a year.
+- **Admins** (Users page): add people (choose a key or leave blank for a random one), give someone a new key,
+  turn people off, change roles. New key / turn off signs that person out everywhere.
+- **Guessing protection:** 8 wrong keys for a name (or 30 from one IP) in 15 minutes blocks sign-in for that
+  name for 15 minutes. Max 5 sign-ups per IP per 15 minutes. Keys are stored as salted scrypt hashes.
+- **Locked out / first admin:** `npm run user:add -- "Name" admin [key]` creates the user, or gives an
+  existing one a new key.
 - Pitches, replies, notes and stage changes record who did them.
 
 ## Workflow

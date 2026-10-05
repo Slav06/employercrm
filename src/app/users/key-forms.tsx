@@ -7,7 +7,7 @@ function NewKey({ result }: { result: KeyResult }) {
   const [copied, setCopied] = useState<string | null>(null);
   if (!result) return null;
   if ('error' in result) return <p className="text-sm text-red-600">{result.error}</p>;
-  const link = `${window.location.origin}/auth?key=${result.key}`;
+  const link = `${window.location.origin}/auth?${new URLSearchParams({ name: result.name, key: result.key })}`;
   const copy = async (label: string, text: string) => {
     await navigator.clipboard.writeText(text);
     setCopied(label);
@@ -15,9 +15,9 @@ function NewKey({ result }: { result: KeyResult }) {
   return (
     <div className="mt-3 space-y-2 rounded-md border border-amber-300 bg-amber-50 p-3 text-sm">
       <p className="font-medium">
-        Key for {result.name} — copy it now, it won’t be shown again.
+        {result.name} signs in with key <span className="font-mono">{result.key}</span> — note it now, it won’t be shown
+        again.
       </p>
-      <code className="block break-all rounded bg-white px-2 py-1 font-mono text-xs">{result.key}</code>
       <div className="flex gap-2">
         <button type="button" className="btn py-1 text-xs" onClick={() => copy('key', result.key)}>
           {copied === 'key' ? 'Copied ✓' : 'Copy key'}
@@ -39,6 +39,10 @@ export function CreateUserForm() {
         <div className="min-w-48 flex-1">
           <label className="label">Name</label>
           <input name="name" required placeholder="Jane" className="input" />
+        </div>
+        <div className="w-40">
+          <label className="label">Key (blank = random)</label>
+          <input name="key" placeholder="tiger42" pattern="[a-zA-Z]{3,20}[0-9]{2}" className="input font-mono" />
         </div>
         <div>
           <label className="label">Role</label>

@@ -17,8 +17,9 @@ export default async function Users() {
     <div className="space-y-4">
       <h1 className="text-xl font-semibold">Users</h1>
       <p className="text-sm text-zinc-500">
-        Everyone signs in with their own secret key. Keys are stored hashed, so a lost key can’t be recovered —
-        issue a new one. Turning a user off signs them out immediately.
+        Everyone signs in with their name + a key (a word and 2 numbers). People can also sign themselves up at{' '}
+        <code className="text-xs">/register</code> as members. Keys are stored hashed, so a forgotten key can’t be
+        looked up — give them a new one. Turning someone off signs them out immediately.
       </p>
 
       <CreateUserForm />
@@ -40,6 +41,7 @@ export default async function Users() {
                 <td className="px-4 py-2 font-medium">
                   {u.name}
                   {u.id === me.id && <span className="ml-1 text-xs font-normal text-zinc-400">(you)</span>}
+                  {u.selfRegistered && <span className="ml-1 text-xs font-normal text-zinc-400">· signed up</span>}
                 </td>
                 <td className="px-2 py-2">
                   {u.id === me.id ? (
