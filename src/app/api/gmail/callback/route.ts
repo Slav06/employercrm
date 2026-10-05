@@ -4,7 +4,7 @@ import { getDb } from '@/db';
 import { gmailAccounts } from '@/db/schema';
 import { getUser } from '@/lib/auth';
 import { encrypt } from '@/lib/gmail/crypto';
-import { exchangeCode, GMAIL_SCOPE, idTokenClaims, STATE_COOKIE, workspaceDomain } from '@/lib/gmail/google';
+import { allowedEmail, exchangeCode, GMAIL_SCOPE, idTokenClaims, STATE_COOKIE } from '@/lib/gmail/google';
 import { syncAccount } from '@/lib/gmail/sync';
 
 export const maxDuration = 300; // first sync (60-day backfill) runs after the redirect
@@ -34,8 +34,7 @@ export async function GET(req: NextRequest) {
 
   const { email } = idTokenClaims(tokens.id_token);
   if (!email) return back('error');
-  const domain = workspaceDomain();
-  if (domain && email.toLowerCase().split('@')[1] !== domain) return back('wrong_domain');
+  if (!allowedEmail(email)) return back('wrong_domain');
 
   const db = await getDb();
   const [existing] = await db.select().from(gmailAccounts).where(eq(gmailAccounts.userId, user.id));

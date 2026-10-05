@@ -11,7 +11,17 @@ export function gmailConfigured() {
   return Boolean(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET && process.env.GMAIL_TOKEN_KEY);
 }
 
-export const workspaceDomain = () => process.env.GOOGLE_WORKSPACE_DOMAIN?.trim().toLowerCase() || null;
+// GOOGLE_WORKSPACE_DOMAIN: one domain or a comma-separated list (e.g. "acme.com,acme.io"). Empty = any.
+export const workspaceDomains = () =>
+  (process.env.GOOGLE_WORKSPACE_DOMAIN ?? '')
+    .split(',')
+    .map((d) => d.trim().toLowerCase())
+    .filter(Boolean);
+
+export const allowedEmail = (email: string) => {
+  const domains = workspaceDomains();
+  return !domains.length || domains.includes(email.toLowerCase().split('@')[1] ?? '');
+};
 
 export function authUrl(redirectUri: string, state: string) {
   const params = new URLSearchParams({
@@ -24,8 +34,9 @@ export function authUrl(redirectUri: string, state: string) {
     include_granted_scopes: 'true',
     state,
   });
-  const hd = workspaceDomain();
-  if (hd) params.set('hd', hd);
+  // hd pre-selects the account type on Google's screen; '*' = any Workspace account. Still verified on callback.
+  const domains = workspaceDomains();
+  if (domains.length) params.set('hd', domains.length === 1 ? domains[0] : '*');
   return `${AUTH_URL}?${params}`;
 }
 

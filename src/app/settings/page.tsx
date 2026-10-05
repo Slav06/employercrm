@@ -4,7 +4,7 @@ import { getDb } from '@/db';
 import { gmailAccounts } from '@/db/schema';
 import { requireUser } from '@/lib/auth';
 import { ago } from '@/lib/format';
-import { gmailConfigured, workspaceDomain } from '@/lib/gmail/google';
+import { gmailConfigured, workspaceDomains } from '@/lib/gmail/google';
 import { BACKFILL_DAYS } from '@/lib/gmail/sync';
 
 export const dynamic = 'force-dynamic';
@@ -14,7 +14,7 @@ const NOTICE: Record<string, [string, string]> = {
   connected: ['ok', `Gmail connected. Importing the last ${BACKFILL_DAYS} days in the background — refresh in a minute.`],
   denied: ['err', 'Google access was cancelled.'],
   no_scope: ['err', 'Gmail access wasn’t granted — tick “Read your email” on the Google screen.'],
-  wrong_domain: ['err', `Use your company Google account${workspaceDomain() ? ` (@${workspaceDomain()})` : ''}.`],
+  wrong_domain: ['err', `Use your company Google account (${workspaceDomains().map((d) => `@${d}`).join(' or ')}).`],
   bad_state: ['err', 'The sign-in link expired. Try again.'],
   error: ['err', 'Couldn’t connect to Google. Try again.'],
   not_configured: ['err', 'Gmail isn’t set up yet — an admin needs to add the Google credentials.'],

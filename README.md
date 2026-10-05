@@ -71,7 +71,8 @@ Each user connects their own company Gmail on **Settings** (read-only). The CRM 
    "EmployerCRM", add scopes `openid`, `email`, `…/auth/gmail.readonly`.
 4. **Credentials → Create credentials → OAuth client ID → Web application**. Authorized redirect URIs:
    `https://employercrm.vercel.app/api/gmail/callback` and `http://localhost:3000/api/gmail/callback`.
-5. Add the client ID/secret to Vercel (and optionally `GOOGLE_WORKSPACE_DOMAIN`), then redeploy:
+5. Add the client ID/secret to Vercel (and optionally `GOOGLE_WORKSPACE_DOMAIN`, comma-separated for several
+   domains), then redeploy:
    `vercel env add GOOGLE_CLIENT_ID production` / `GOOGLE_CLIENT_SECRET` → `vercel deploy --prod`.
 
 `GMAIL_TOKEN_KEY` (encrypts stored Google tokens) and `CRON_SECRET` are already set in Vercel. Changing
