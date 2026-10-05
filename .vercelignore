@@ -1,0 +1,5 @@
+data/
+spike/out/
+.next/
+node_modules/
+.env*
