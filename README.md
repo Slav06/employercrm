@@ -11,8 +11,9 @@ npm install
 npm run dev          # http://localhost:3000
 ```
 
-The database is an embedded Postgres (PGlite) stored in `./data/pglite`. Migrations run and the
-starting searches are created automatically on first load. Set `DATABASE_URL` to use Neon/Postgres instead.
+With `.env.local` pulled from Vercel this uses the production Neon database. Without `DATABASE_URL` it uses
+an embedded Postgres (PGlite) in `./data/pglite`. Migrations run and the starting searches are created
+automatically on first load.
 
 ## Getting listings
 
@@ -36,6 +37,15 @@ It opens one page every 3 s and at most 60 new listings per search per run (`CL_
 3. When they answer → **Log reply** (stage → *Replied*, follow-up due today).
 4. Move through *Meeting → Proposal → Won/Lost* on the listing page; see everything on **Pipeline**.
 5. **Dashboard** shows new listings, reply rate, follow-ups due, and fetch health.
+
+## Deployment
+
+- **Live:** https://employercrm.vercel.app — **no login by choice**: anyone with the URL can view and edit. It's
+  marked `noindex` so search engines skip it.
+- Pushing to `main` deploys automatically (or `npx vercel deploy --prod`).
+- Database: Neon Postgres (Vercel Marketplace). `.env.local` (from `vercel env pull`) points local dev and
+  `npm run fetch` at the same database. Remove `DATABASE_URL` from `.env.local` to use the local PGlite DB.
+- **Fetching never runs on Vercel** (button hidden, `/api/fetch` refuses). Run `npm run fetch` on this machine.
 
 ## Layout
 

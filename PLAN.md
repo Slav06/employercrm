@@ -179,5 +179,5 @@ Ran `spike/craigslist.mjs` from this machine (home connection, WSL).
 **Next up**
 1. Schedule the fetch every 3–4 h on this machine (cron → `/api/fetch`, app running via `npm start`).
 2. Pitch templates with `{{company}}`/`{{title}}` + copy-to-clipboard on the listing page.
-3. Access control, Neon DB, deploy UI to Vercel (fetcher stays local).
+3. ~~Neon DB, deploy UI to Vercel~~ ✅ 2026-10-05 → https://employercrm.vercel.app (no login, by user's choice; noindex).
 4. Phase 2: Gmail reply matching.
