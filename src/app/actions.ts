@@ -4,11 +4,11 @@ import { eq } from 'drizzle-orm';
 import { revalidatePath } from 'next/cache';
 import { getDb } from '@/db';
 import { activities, CHANNELS, listings, searches, type Stage } from '@/db/schema';
+import { requireUser } from '@/lib/auth';
 import { isStage, stageIndex } from '@/lib/format';
 import { FETCH_ENABLED, isIngestRunning, runAllSearches } from '@/lib/ingest';
 
-// NOTE: no auth by choice — anyone with the URL can view and edit. Server Actions
-// are reachable by direct POST, so add access control here if that changes.
+// Server Actions are reachable by direct POST, so every action checks the key itself.
 
 const str = (f: FormData, k: string) => {
   const v = f.get(k);
@@ -26,7 +26,7 @@ function refresh(listingId?: number) {
   if (listingId) revalidatePath(`/listings/${listingId}`);
 }
 
-async function moveStage(listingId: number, to: Stage, note?: string | null) {
+async function moveStage(listingId: number, to: Stage, userId: number, note?: string | null) {
   const db = await getDb();
   const [cur] = await db.select({ stage: listings.stage }).from(listings).where(eq(listings.id, listingId));
   if (!cur || cur.stage === to) return;
@@ -34,27 +34,30 @@ async function moveStage(listingId: number, to: Stage, note?: string | null) {
   await db.insert(activities).values({
     listingId,
     type: 'stage',
+    userId,
     summary: note ?? null,
     meta: { from: cur.stage, to },
   });
 }
 
 // Only moves forward (e.g. a reply on a "meeting" listing stays at meeting).
-async function advanceTo(listingId: number, to: Stage) {
+async function advanceTo(listingId: number, to: Stage, userId: number) {
   const db = await getDb();
   const [cur] = await db.select({ stage: listings.stage }).from(listings).where(eq(listings.id, listingId));
-  if (cur && stageIndex(cur.stage) < stageIndex(to)) await moveStage(listingId, to);
+  if (cur && stageIndex(cur.stage) < stageIndex(to)) await moveStage(listingId, to, userId);
 }
 
 export async function setStage(formData: FormData) {
+  const user = await requireUser();
   const listingId = id(formData);
   const stage = formData.get('stage');
   if (!isStage(stage)) throw new Error('Invalid stage');
-  await moveStage(listingId, stage, str(formData, 'note'));
+  await moveStage(listingId, stage, user.id, str(formData, 'note'));
   refresh(listingId);
 }
 
 export async function logPitch(formData: FormData) {
+  const user = await requireUser();
   const listingId = id(formData);
   const channel = str(formData, 'channel') ?? 'cl_reply';
   if (!(CHANNELS as readonly string[]).includes(channel)) throw new Error('Invalid channel');
@@ -63,11 +66,12 @@ export async function logPitch(formData: FormData) {
   await db.insert(activities).values({
     listingId,
     type: 'pitch',
+    userId: user.id,
     channel,
     summary: str(formData, 'summary'),
     meta: { to: str(formData, 'to') },
   });
-  await advanceTo(listingId, 'pitched');
+  await advanceTo(listingId, 'pitched', user.id);
   if (followUpDays > 0) {
     await db.update(listings).set({ nextFollowUpAt: daysFromNow(followUpDays) }).where(eq(listings.id, listingId));
   }
@@ -75,41 +79,46 @@ export async function logPitch(formData: FormData) {
 }
 
 export async function logReply(formData: FormData) {
+  const user = await requireUser();
   const listingId = id(formData);
   const db = await getDb();
   await db.insert(activities).values({
     listingId,
     type: 'reply',
+    userId: user.id,
     channel: str(formData, 'channel') ?? 'email',
     summary: str(formData, 'summary'),
     meta: { from: str(formData, 'from') },
   });
-  await advanceTo(listingId, 'replied');
+  await advanceTo(listingId, 'replied', user.id);
   // A reply means the ball is in our court: due today unless told otherwise.
   await db.update(listings).set({ nextFollowUpAt: new Date() }).where(eq(listings.id, listingId));
   refresh(listingId);
 }
 
 export async function addNote(formData: FormData) {
+  const user = await requireUser();
   const listingId = id(formData);
   const summary = str(formData, 'summary');
   if (!summary) return;
   const db = await getDb();
-  await db.insert(activities).values({ listingId, type: 'note', summary });
+  await db.insert(activities).values({ listingId, type: 'note', userId: user.id, summary });
   refresh(listingId);
 }
 
 export async function setFollowUp(formData: FormData) {
+  const user = await requireUser();
   const listingId = id(formData);
   const date = str(formData, 'date');
   const db = await getDb();
   const at = date ? new Date(`${date}T09:00:00`) : null;
   await db.update(listings).set({ nextFollowUpAt: at }).where(eq(listings.id, listingId));
-  if (at) await db.insert(activities).values({ listingId, type: 'follow_up', summary: `Follow up ${date}` });
+  if (at) await db.insert(activities).values({ listingId, type: 'follow_up', userId: user.id, summary: `Follow up ${date}` });
   refresh(listingId);
 }
 
 export async function updateContact(formData: FormData) {
+  await requireUser();
   const listingId = id(formData);
   const db = await getDb();
   await db
@@ -128,6 +137,7 @@ export async function updateContact(formData: FormData) {
 }
 
 export async function fetchNow() {
+  await requireUser();
   if (FETCH_ENABLED && !isIngestRunning()) {
     // Runs in the background on the long-lived local server; progress shows up in fetch_runs.
     runAllSearches({ log: (m) => console.log(`[ingest] ${m}`) }).then(
@@ -139,6 +149,7 @@ export async function fetchNow() {
 }
 
 export async function saveSearch(formData: FormData) {
+  await requireUser();
   const db = await getDb();
   const area = str(formData, 'area');
   const category = str(formData, 'category');
@@ -159,6 +170,7 @@ export async function saveSearch(formData: FormData) {
 }
 
 export async function toggleSearch(formData: FormData) {
+  await requireUser();
   const db = await getDb();
   const searchId = id(formData);
   const [s] = await db.select({ active: searches.active }).from(searches).where(eq(searches.id, searchId));

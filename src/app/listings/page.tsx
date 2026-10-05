@@ -3,6 +3,7 @@ import Link from 'next/link';
 import { setStage } from '@/app/actions';
 import { StageBadge } from '@/components/stage-badge';
 import { getDb } from '@/db';
+import { requireUser } from '@/lib/auth';
 import { listings, STAGES } from '@/db/schema';
 import { AREAS, CATEGORIES } from '@/db/seed';
 import { ago, isStage, STAGE_LABEL } from '@/lib/format';
@@ -12,6 +13,7 @@ export const dynamic = 'force-dynamic';
 const PAGE_SIZE = 100;
 
 export default async function Inbox({ searchParams }: PageProps<'/listings'>) {
+  await requireUser();
   const sp = await searchParams;
   const one = (k: string) => (typeof sp[k] === 'string' ? (sp[k] as string) : '');
   const stage = one('stage') || 'new';

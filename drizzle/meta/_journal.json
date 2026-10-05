@@ -8,6 +8,13 @@
       "when": 1791213293646,
       "tag": "0000_new_scarecrow",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1791215518030,
+      "tag": "0001_users",
+      "breakpoints": true
     }
   ]
 }

@@ -4,13 +4,15 @@ import { notFound } from 'next/navigation';
 import { addNote, logPitch, logReply, setFollowUp, setStage, updateContact } from '@/app/actions';
 import { StageBadge } from '@/components/stage-badge';
 import { getDb } from '@/db';
-import { activities, CHANNELS, listings, STAGES, type Activity } from '@/db/schema';
+import { requireUser } from '@/lib/auth';
+import { activities, CHANNELS, listings, STAGES, users, type Activity } from '@/db/schema';
 import { AREAS, CATEGORIES } from '@/db/seed';
 import { CHANNEL_LABEL, fmtDate, STAGE_LABEL } from '@/lib/format';
 
 export const dynamic = 'force-dynamic';
 
 export default async function ListingPage({ params }: PageProps<'/listings/[id]'>) {
+  await requireUser();
   const { id } = await params;
   const listingId = Number(id);
   if (!Number.isInteger(listingId)) notFound();
@@ -18,7 +20,12 @@ export default async function ListingPage({ params }: PageProps<'/listings/[id]'
   const db = await getDb();
   const [l] = await db.select().from(listings).where(eq(listings.id, listingId));
   if (!l) notFound();
-  const timeline = await db.select().from(activities).where(eq(activities.listingId, listingId)).orderBy(desc(activities.at));
+  const timeline = await db
+    .select({ a: activities, by: users.name })
+    .from(activities)
+    .leftJoin(users, eq(users.id, activities.userId))
+    .where(eq(activities.listingId, listingId))
+    .orderBy(desc(activities.at));
 
   const expired = l.validThrough && l.validThrough < new Date();
   const followUp = l.nextFollowUpAt ? l.nextFollowUpAt.toLocaleDateString('en-CA') : '';
@@ -75,8 +82,8 @@ export default async function ListingPage({ params }: PageProps<'/listings/[id]'
               <p className="text-sm text-zinc-500">No activity yet.</p>
             ) : (
               <ol className="space-y-3">
-                {timeline.map((a) => (
-                  <TimelineItem key={a.id} a={a} />
+                {timeline.map(({ a, by }) => (
+                  <TimelineItem key={a.id} a={a} by={by} />
                 ))}
               </ol>
             )}
@@ -189,7 +196,7 @@ const TYPE_STYLE: Record<string, string> = {
   follow_up: 'bg-sky-400',
 };
 
-function TimelineItem({ a }: { a: Activity }) {
+function TimelineItem({ a, by }: { a: Activity; by: string | null }) {
   const meta = (a.meta ?? {}) as Record<string, string | null>;
   let title: string;
   if (a.type === 'pitch') title = `Pitched via ${CHANNEL_LABEL[a.channel ?? ''] ?? a.channel}${meta.to ? ` → ${meta.to}` : ''}`;
@@ -203,7 +210,11 @@ function TimelineItem({ a }: { a: Activity }) {
       <span className={`mt-1.5 size-2 shrink-0 rounded-full ${TYPE_STYLE[a.type]}`} />
       <div className="min-w-0">
         <div>
-          <span className="font-medium">{title}</span> <span className="text-xs text-zinc-400">{fmtDate(a.at, true)}</span>
+          <span className="font-medium">{title}</span>{' '}
+          <span className="text-xs text-zinc-400">
+            {fmtDate(a.at, true)}
+            {by && ` · ${by}`}
+          </span>
         </div>
         {a.summary && <div className="whitespace-pre-wrap text-zinc-600">{a.summary}</div>}
       </div>

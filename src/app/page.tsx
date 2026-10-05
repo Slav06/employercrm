@@ -3,6 +3,7 @@ import Link from 'next/link';
 import { fetchNow } from '@/app/actions';
 import { StageBadge } from '@/components/stage-badge';
 import { getDb } from '@/db';
+import { requireUser } from '@/lib/auth';
 import { activities, fetchRuns, listings, searches, STAGES } from '@/db/schema';
 import { ago, daysAgo, endOfToday, fmtDate, STAGE_LABEL } from '@/lib/format';
 import { FETCH_ENABLED, isIngestRunning } from '@/lib/ingest';
@@ -12,6 +13,7 @@ export const dynamic = 'force-dynamic';
 const CLOSED = ['won', 'lost', 'skipped'] as const;
 
 export default async function Dashboard() {
+  await requireUser();
   const db = await getDb();
   const dayAgo = daysAgo(1);
   const weekAgo = daysAgo(7);

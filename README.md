@@ -29,6 +29,16 @@ automatically on first load.
 The fetcher must run from a home/residential connection — Craigslist blocks cloud IPs (Vercel, AWS).
 It opens one page every 3 s and at most 60 new listings per search per run (`CL_DELAY_MS`, `CL_MAX_NEW_PER_SEARCH`).
 
+## Users & login
+
+Every user has their own secret key (`crm_…`). Sign in by pasting it at `/login`, or open the one-click
+login link `/auth?key=…`. The session lasts a year. Only a SHA-256 of each key is stored, so a lost key
+can't be recovered — an admin issues a new one (which also kills the old one).
+
+- **Admins** manage people on the **Users** page: add user (key shown once), new key, turn off, change role.
+- **First admin / locked out:** `npm run user:add -- "Name" admin` (uses `.env.local`, prints key + link).
+- Pitches, replies, notes and stage changes record who did them.
+
 ## Workflow
 
 1. **Inbox** — new listings. *Qualify* the ones worth pitching, *Skip* the rest.
@@ -40,8 +50,7 @@ It opens one page every 3 s and at most 60 new listings per search per run (`CL_
 
 ## Deployment
 
-- **Live:** https://employercrm.vercel.app — **no login by choice**: anyone with the URL can view and edit. It's
-  marked `noindex` so search engines skip it.
+- **Live:** https://employercrm.vercel.app — sign in with a per-user secret key (marked `noindex` too).
 - Pushing to `main` deploys automatically (or `npx vercel deploy --prod`).
 - Database: Neon Postgres (Vercel Marketplace). `.env.local` (from `vercel env pull`) points local dev and
   `npm run fetch` at the same database. Remove `DATABASE_URL` from `.env.local` to use the local PGlite DB.

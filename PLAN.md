@@ -176,6 +176,8 @@ Ran `spike/craigslist.mjs` from this machine (home connection, WSL).
   Stages only auto-advance forward.
 - Fetch: dashboard button, `npm run fetch`, or `POST /api/fetch` (Bearer `CRON_SECRET`) for cron.
 
+- 2026-10-05: per-user secret-key login (users table, admin Users page, `/auth?key=` login links, activity attribution).
+
 **Next up**
 1. Schedule the fetch every 3–4 h on this machine (cron → `/api/fetch`, app running via `npm start`).
 2. Pitch templates with `{{company}}`/`{{title}}` + copy-to-clipboard on the listing page.

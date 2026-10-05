@@ -1,6 +1,7 @@
 import { asc } from 'drizzle-orm';
 import { saveSearch, toggleSearch } from '@/app/actions';
 import { getDb } from '@/db';
+import { requireUser } from '@/lib/auth';
 import { searches } from '@/db/schema';
 import { ago } from '@/lib/format';
 import { searchUrl } from '@/lib/craigslist';
@@ -8,6 +9,7 @@ import { searchUrl } from '@/lib/craigslist';
 export const dynamic = 'force-dynamic';
 
 export default async function Searches() {
+  await requireUser();
   const db = await getDb();
   const rows = await db.select().from(searches).orderBy(asc(searches.id));
 

@@ -1,6 +1,8 @@
 import type { Metadata } from 'next';
 import { Geist, Geist_Mono } from 'next/font/google';
 import Link from 'next/link';
+import { logout } from '@/app/auth-actions';
+import { getUser } from '@/lib/auth';
 import './globals.css';
 
 const geistSans = Geist({ variable: '--font-geist-sans', subsets: ['latin'] });
@@ -20,7 +22,9 @@ const NAV = [
   { href: '/searches', label: 'Searches' },
 ];
 
-export default function RootLayout({ children }: LayoutProps<'/'>) {
+export default async function RootLayout({ children }: LayoutProps<'/'>) {
+  const user = await getUser();
+  const nav = user?.role === 'admin' ? [...NAV, { href: '/users', label: 'Users' }] : NAV;
   return (
     <html lang="en" className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}>
       <body className="min-h-full font-sans">
@@ -29,11 +33,18 @@ export default function RootLayout({ children }: LayoutProps<'/'>) {
             <Link href="/" className="font-semibold">
               EmployerCRM
             </Link>
-            {NAV.map((n) => (
-              <Link key={n.href} href={n.href} className="text-sm text-zinc-600 hover:text-zinc-900">
-                {n.label}
-              </Link>
-            ))}
+            {user &&
+              nav.map((n) => (
+                <Link key={n.href} href={n.href} className="text-sm text-zinc-600 hover:text-zinc-900">
+                  {n.label}
+                </Link>
+              ))}
+            {user && (
+              <form action={logout} className="ml-auto flex items-center gap-3 text-sm text-zinc-500">
+                <span>{user.name}</span>
+                <button className="hover:text-zinc-900 hover:underline">Sign out</button>
+              </form>
+            )}
           </nav>
         </header>
         <main className="mx-auto max-w-7xl px-4 py-6">{children}</main>

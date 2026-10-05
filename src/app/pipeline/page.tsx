@@ -1,6 +1,7 @@
 import { and, desc, gte, inArray, or } from 'drizzle-orm';
 import Link from 'next/link';
 import { getDb } from '@/db';
+import { requireUser } from '@/lib/auth';
 import { listings, type Stage } from '@/db/schema';
 import { AREAS } from '@/db/seed';
 import { daysAgo, fmtDate, STAGE_CLASS, STAGE_LABEL } from '@/lib/format';
@@ -11,6 +12,7 @@ export const dynamic = 'force-dynamic';
 const COLUMNS: Stage[] = ['qualified', 'pitched', 'replied', 'meeting', 'proposal', 'won', 'lost'];
 
 export default async function Pipeline() {
+  await requireUser();
   const db = await getDb();
   const monthAgo = daysAgo(30);
   const rows = await db

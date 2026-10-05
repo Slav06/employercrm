@@ -28,6 +28,20 @@ export type ActivityType = (typeof ACTIVITY_TYPES)[number];
 
 export const CHANNELS = ['cl_reply', 'email', 'phone', 'text', 'website', 'linkedin', 'other'] as const;
 
+export const ROLES = ['admin', 'member'] as const;
+export type Role = (typeof ROLES)[number];
+
+// Each user logs in with their own secret key (only its SHA-256 is stored).
+export const users = pgTable('users', {
+  id: serial('id').primaryKey(),
+  name: text('name').notNull(),
+  role: text('role').$type<Role>().notNull().default('member'),
+  keyHash: text('key_hash').notNull().unique(),
+  active: boolean('active').notNull().default(true),
+  lastSeenAt: timestamp('last_seen_at', { withTimezone: true }),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+});
+
 export const searches = pgTable('searches', {
   id: serial('id').primaryKey(),
   name: text('name').notNull(),
@@ -94,6 +108,7 @@ export const activities = pgTable(
       .notNull()
       .references(() => listings.id, { onDelete: 'cascade' }),
     type: text('type').$type<ActivityType>().notNull(),
+    userId: integer('user_id').references(() => users.id, { onDelete: 'set null' }),
     channel: text('channel'),
     summary: text('summary'),
     meta: jsonb('meta').$type<Record<string, unknown>>(),
@@ -113,6 +128,7 @@ export const fetchRuns = pgTable('fetch_runs', {
   error: text('error'),
 });
 
+export type User = typeof users.$inferSelect;
 export type Search = typeof searches.$inferSelect;
 export type Listing = typeof listings.$inferSelect;
 export type Activity = typeof activities.$inferSelect;
