@@ -140,8 +140,8 @@ Unique key: `(source, source_post_id)`; secondary dedupe on `content_hash`.
 
 ## 7. Open questions
 
-- **Who submits?** Is this for applying to jobs as a candidate, or for pitching our services to employers who are hiring (sales/staffing)? Changes the templates and pipeline stages.
-- Which **cities and categories** on Craigslist to start with?
+- ~~Who submits?~~ **Answered:** we pitch our services to businesses that are hiring. Internal use only, no reselling data.
+- ~~Cities/categories?~~ **Answered:** Admin/Office (`ofc`) + Marketing/PR (`mar`) in Miami, New York, SF Bay.
 - Single user or a team?
 - Which Gmail account receives replies?
 - OK to run the fetcher from this machine, or do we want a VPS + residential proxy?
@@ -162,3 +162,22 @@ Ran `spike/craigslist.mjs` from this machine (home connection, WSL).
 - Contact/reply email still not fetched (behind CAPTCHA) — by design.
 
 **Ingest design that follows:** per saved search → fetch search page → diff URLs against DB → fetch only *new* listing pages at ~1 req/3 s → upsert. A typical run is 1 search request + a handful of detail requests.
+
+---
+
+## 9. Status (2026-10-05) — Phase 1 MVP built
+
+- Next.js 16 app + Drizzle. DB is embedded PGlite locally (`./data/pglite`); `DATABASE_URL` switches to Neon/Postgres.
+- Seeded searches: miami/newyork/sfbay × ofc/mar (~575 listings live at time of build).
+- Pipeline (pitching services): `New → Qualified → Pitched → Replied → Meeting → Proposal → Won / Lost`, plus `Skipped`.
+- Data model simplified vs §5: `submission`, `reply`, `pipeline_event`, `follow_up` collapsed into one
+  `activities` timeline (type = pitch | reply | note | stage | follow_up) + `listings.next_follow_up_at`.
+- Logging a pitch → stage Pitched + follow-up in N days. Logging a reply → stage Replied + follow-up due today.
+  Stages only auto-advance forward.
+- Fetch: dashboard button, `npm run fetch`, or `POST /api/fetch` (Bearer `CRON_SECRET`) for cron.
+
+**Next up**
+1. Schedule the fetch every 3–4 h on this machine (cron → `/api/fetch`, app running via `npm start`).
+2. Pitch templates with `{{company}}`/`{{title}}` + copy-to-clipboard on the listing page.
+3. Access control, Neon DB, deploy UI to Vercel (fetcher stays local).
+4. Phase 2: Gmail reply matching.
