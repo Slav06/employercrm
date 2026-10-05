@@ -1,7 +1,7 @@
-import { desc, eq } from 'drizzle-orm';
+import { asc, desc, eq } from 'drizzle-orm';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
-import { addNote, logPitch, logReply, setFollowUp, setStage, updateContact } from '@/app/actions';
+import { addNote, logPitch, logReply, setFollowUp, setOwner, setStage, updateContact } from '@/app/actions';
 import { StageBadge } from '@/components/stage-badge';
 import { getDb } from '@/db';
 import { requireUser } from '@/lib/auth';
@@ -20,6 +20,8 @@ export default async function ListingPage({ params }: PageProps<'/listings/[id]'
   const db = await getDb();
   const [l] = await db.select().from(listings).where(eq(listings.id, listingId));
   if (!l) notFound();
+  const people = await db.select({ id: users.id, name: users.name }).from(users).orderBy(asc(users.name));
+  const ownerName = people.find((p) => p.id === l.ownerId)?.name;
   const timeline = await db
     .select({ a: activities, by: users.name })
     .from(activities)
@@ -42,6 +44,7 @@ export default async function ListingPage({ params }: PageProps<'/listings/[id]'
           <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-zinc-600">
             <StageBadge stage={l.stage} />
             <span className="font-medium text-zinc-900">{l.company ?? 'Company not listed'}</span>
+            {ownerName && <span>· {ownerName}</span>}
             <span>
               {[l.city, l.region, l.postalCode].filter(Boolean).join(', ') || l.location}
             </span>
@@ -132,6 +135,21 @@ export default async function ListingPage({ params }: PageProps<'/listings/[id]'
                   {STAGES.map((s) => (
                     <option key={s} value={s}>
                       {STAGE_LABEL[s]}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <button className="btn">Set</button>
+            </form>
+            <form action={setOwner} className="flex items-end gap-2">
+              <input type="hidden" name="id" value={l.id} />
+              <div className="flex-1">
+                <label className="label">User</label>
+                <select name="ownerId" defaultValue={l.ownerId ?? 0} className="input">
+                  <option value={0}>Unassigned</option>
+                  {people.map((p) => (
+                    <option key={p.id} value={p.id}>
+                      {p.name}
                     </option>
                   ))}
                 </select>

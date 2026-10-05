@@ -3,7 +3,6 @@ import { STAGES } from '@/db/schema';
 
 export const STAGE_LABEL: Record<Stage, string> = {
   new: 'New',
-  qualified: 'Qualified',
   pitched: 'Pitched',
   replied: 'Replied',
   meeting: 'Meeting',
@@ -15,7 +14,6 @@ export const STAGE_LABEL: Record<Stage, string> = {
 
 export const STAGE_CLASS: Record<Stage, string> = {
   new: 'bg-sky-100 text-sky-800',
-  qualified: 'bg-indigo-100 text-indigo-800',
   pitched: 'bg-amber-100 text-amber-800',
   replied: 'bg-emerald-100 text-emerald-800',
   meeting: 'bg-teal-100 text-teal-800',

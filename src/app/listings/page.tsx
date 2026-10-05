@@ -1,10 +1,10 @@
-import { and, desc, eq, ilike, or, sql, type SQL } from 'drizzle-orm';
+import { and, asc, desc, eq, ilike, isNull, or, sql, type SQL } from 'drizzle-orm';
 import Link from 'next/link';
 import { setStage } from '@/app/actions';
 import { StageBadge } from '@/components/stage-badge';
 import { getDb } from '@/db';
 import { requireUser } from '@/lib/auth';
-import { listings, STAGES } from '@/db/schema';
+import { listings, STAGES, users } from '@/db/schema';
 import { AREAS, CATEGORIES } from '@/db/seed';
 import { ago, isStage, STAGE_LABEL } from '@/lib/format';
 
@@ -20,23 +20,30 @@ export default async function Inbox({ searchParams }: PageProps<'/listings'>) {
   const area = one('area');
   const category = one('category');
   const q = one('q');
+  const owner = one('user'); // '' all, 'none' unassigned, or a user id
 
   const where: SQL[] = [];
   if (stage !== 'all' && isStage(stage)) where.push(eq(listings.stage, stage));
   if (area) where.push(eq(listings.area, area));
   if (category) where.push(eq(listings.category, category));
+  if (owner === 'none') where.push(isNull(listings.ownerId));
+  else if (owner && Number(owner)) where.push(eq(listings.ownerId, Number(owner)));
   if (q) {
     const like = `%${q}%`;
     where.push(or(ilike(listings.title, like), ilike(listings.company, like), ilike(listings.body, like))!);
   }
 
   const db = await getDb();
-  const rows = await db
-    .select()
-    .from(listings)
-    .where(where.length ? and(...where) : undefined)
-    .orderBy(desc(sql`coalesce(${listings.postedAt}, ${listings.firstSeenAt})`))
-    .limit(PAGE_SIZE);
+  const [rows, people] = await Promise.all([
+    db
+      .select({ l: listings, ownerName: users.name })
+      .from(listings)
+      .leftJoin(users, eq(users.id, listings.ownerId))
+      .where(where.length ? and(...where) : undefined)
+      .orderBy(desc(sql`coalesce(${listings.postedAt}, ${listings.firstSeenAt})`))
+      .limit(PAGE_SIZE),
+    db.select({ id: users.id, name: users.name }).from(users).orderBy(asc(users.name)),
+  ]);
 
   return (
     <div className="space-y-4">
@@ -76,6 +83,18 @@ export default async function Inbox({ searchParams }: PageProps<'/listings'>) {
             ))}
           </select>
         </div>
+        <div>
+          <label className="label">User</label>
+          <select name="user" defaultValue={owner} className="input">
+            <option value="">Anyone</option>
+            <option value="none">Unassigned</option>
+            {people.map((p) => (
+              <option key={p.id} value={p.id}>
+                {p.name}
+              </option>
+            ))}
+          </select>
+        </div>
         <div className="min-w-48 flex-1">
           <label className="label">Search</label>
           <input name="q" defaultValue={q} placeholder="title, company, description…" className="input" />
@@ -92,11 +111,12 @@ export default async function Inbox({ searchParams }: PageProps<'/listings'>) {
               <th className="px-2 py-2 font-medium">Pay</th>
               <th className="px-2 py-2 font-medium">Posted</th>
               <th className="px-2 py-2 font-medium">Stage</th>
+              <th className="px-2 py-2 font-medium">User</th>
               <th className="px-4 py-2" />
             </tr>
           </thead>
           <tbody className="divide-y divide-zinc-100">
-            {rows.map((l) => (
+            {rows.map(({ l, ownerName }) => (
               <tr key={l.id} className="hover:bg-zinc-50">
                 <td className="max-w-md px-4 py-2">
                   <Link href={`/listings/${l.id}`} className="block truncate font-medium hover:underline">
@@ -118,27 +138,21 @@ export default async function Inbox({ searchParams }: PageProps<'/listings'>) {
                 <td className="px-2 py-2">
                   <StageBadge stage={l.stage} />
                 </td>
+                <td className="whitespace-nowrap px-2 py-2 text-zinc-600">{ownerName ?? <span className="text-zinc-300">—</span>}</td>
                 <td className="whitespace-nowrap px-4 py-2 text-right">
                   {l.stage === 'new' && (
-                    <span className="inline-flex gap-1">
-                      <form action={setStage}>
-                        <input type="hidden" name="id" value={l.id} />
-                        <input type="hidden" name="stage" value="qualified" />
-                        <button className="btn py-1 text-xs">Qualify</button>
-                      </form>
-                      <form action={setStage}>
-                        <input type="hidden" name="id" value={l.id} />
-                        <input type="hidden" name="stage" value="skipped" />
-                        <button className="btn py-1 text-xs text-zinc-500">Skip</button>
-                      </form>
-                    </span>
+                    <form action={setStage}>
+                      <input type="hidden" name="id" value={l.id} />
+                      <input type="hidden" name="stage" value="skipped" />
+                      <button className="btn py-1 text-xs text-zinc-500">Skip</button>
+                    </form>
                   )}
                 </td>
               </tr>
             ))}
             {rows.length === 0 && (
               <tr>
-                <td colSpan={6} className="px-4 py-8 text-center text-zinc-500">
+                <td colSpan={7} className="px-4 py-8 text-center text-zinc-500">
                   No listings match.
                 </td>
               </tr>

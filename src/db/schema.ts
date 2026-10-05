@@ -14,7 +14,6 @@ import {
 // Pipeline for pitching our services to businesses that are hiring.
 export const STAGES = [
   'new',
-  'qualified',
   'pitched',
   'replied',
   'meeting',
@@ -111,6 +110,8 @@ export const listings = pgTable(
     repostCount: integer('repost_count').notNull().default(0),
     excluded: boolean('excluded').notNull().default(false),
     stage: text('stage').$type<Stage>().notNull().default('new'),
+    // Who's working this lead: the first user to act on it (pitch, reply, note, stage move).
+    ownerId: integer('owner_id').references(() => users.id, { onDelete: 'set null' }),
     contactName: text('contact_name'),
     contactEmail: text('contact_email'),
     contactPhone: text('contact_phone'),
@@ -126,6 +127,7 @@ export const listings = pgTable(
     index('listings_hash_idx').on(t.contentHash),
     index('listings_posted_idx').on(t.postedAt),
     index('listings_follow_up_idx').on(t.nextFollowUpAt),
+    index('listings_owner_idx').on(t.ownerId),
   ],
 );
 

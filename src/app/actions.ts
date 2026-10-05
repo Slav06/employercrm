@@ -1,6 +1,6 @@
 'use server';
 
-import { eq } from 'drizzle-orm';
+import { and, eq, isNull } from 'drizzle-orm';
 import { revalidatePath } from 'next/cache';
 import { getDb } from '@/db';
 import { activities, CHANNELS, listings, searches, type Stage } from '@/db/schema';
@@ -24,6 +24,15 @@ const daysFromNow = (days: number) => new Date(Date.now() + days * 86400_000);
 function refresh(listingId?: number) {
   revalidatePath('/', 'layout');
   if (listingId) revalidatePath(`/listings/${listingId}`);
+}
+
+// First person to work a lead becomes its user; later actions by others don't change it.
+async function claim(listingId: number, userId: number) {
+  const db = await getDb();
+  await db
+    .update(listings)
+    .set({ ownerId: userId })
+    .where(and(eq(listings.id, listingId), isNull(listings.ownerId)));
 }
 
 async function moveStage(listingId: number, to: Stage, userId: number, note?: string | null) {
@@ -53,6 +62,7 @@ export async function setStage(formData: FormData) {
   const stage = formData.get('stage');
   if (!isStage(stage)) throw new Error('Invalid stage');
   await moveStage(listingId, stage, user.id, str(formData, 'note'));
+  if (stage !== 'skipped' && stage !== 'new') await claim(listingId, user.id);
   refresh(listingId);
 }
 
@@ -72,6 +82,7 @@ export async function logPitch(formData: FormData) {
     meta: { to: str(formData, 'to') },
   });
   await advanceTo(listingId, 'pitched', user.id);
+  await claim(listingId, user.id);
   if (followUpDays > 0) {
     await db.update(listings).set({ nextFollowUpAt: daysFromNow(followUpDays) }).where(eq(listings.id, listingId));
   }
@@ -91,8 +102,21 @@ export async function logReply(formData: FormData) {
     meta: { from: str(formData, 'from') },
   });
   await advanceTo(listingId, 'replied', user.id);
+  await claim(listingId, user.id);
   // A reply means the ball is in our court: due today unless told otherwise.
   await db.update(listings).set({ nextFollowUpAt: new Date() }).where(eq(listings.id, listingId));
+  refresh(listingId);
+}
+
+export async function setOwner(formData: FormData) {
+  await requireUser();
+  const listingId = id(formData);
+  const owner = Number(formData.get('ownerId'));
+  const db = await getDb();
+  await db
+    .update(listings)
+    .set({ ownerId: owner > 0 ? owner : null })
+    .where(eq(listings.id, listingId));
   refresh(listingId);
 }
 
@@ -103,6 +127,7 @@ export async function addNote(formData: FormData) {
   if (!summary) return;
   const db = await getDb();
   await db.insert(activities).values({ listingId, type: 'note', userId: user.id, summary });
+  await claim(listingId, user.id);
   refresh(listingId);
 }
 

@@ -169,7 +169,7 @@ Ran `spike/craigslist.mjs` from this machine (home connection, WSL).
 
 - Next.js 16 app + Drizzle. DB is embedded PGlite locally (`./data/pglite`); `DATABASE_URL` switches to Neon/Postgres.
 - Seeded searches: miami/newyork/sfbay × ofc/mar (~575 listings live at time of build).
-- Pipeline (pitching services): `New → Qualified → Pitched → Replied → Meeting → Proposal → Won / Lost`, plus `Skipped`.
+- Pipeline (pitching services): `New → Pitched → Replied → Meeting → Proposal → Won / Lost`, plus `Skipped` (Qualified removed 2026-10-05). Each listing has an owner (User column).
 - Data model simplified vs §5: `submission`, `reply`, `pipeline_event`, `follow_up` collapsed into one
   `activities` timeline (type = pitch | reply | note | stage | follow_up) + `listings.next_follow_up_at`.
 - Logging a pitch → stage Pitched + follow-up in N days. Logging a reply → stage Replied + follow-up due today.

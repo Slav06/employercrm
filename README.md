@@ -46,7 +46,7 @@ Sign in with **your name + a key** — a word and 2 numbers, e.g. `tiger42` (cas
 
 ## Workflow
 
-1. **Inbox** — new listings. *Qualify* the ones worth pitching, *Skip* the rest.
+1. **Inbox** — new listings. Open the ones worth pitching, *Skip* the rest. The **User** column shows who is working each lead (the first person to pitch, reply, note or move it; reassign on the listing page).
 2. Open a listing → **Open on Craigslist** → reply (Craigslist shows the employer's relay email after a CAPTCHA)
    → **Log pitch**. Stage moves to *Pitched* and a follow-up is scheduled.
 3. When they answer → **Log reply** (stage → *Replied*, follow-up due today).
