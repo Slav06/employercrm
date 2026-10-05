@@ -1,0 +1,24 @@
+{
+  "name": "employercrm",
+  "version": "1.0.0",
+  "description": "Pull job listings from job boards (starting with Craigslist), track which ones we submitted to, and track employer replies.",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Slav06/employercrm.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/Slav06/employercrm/issues"
+  },
+  "homepage": "https://github.com/Slav06/employercrm#readme",
+  "type": "module",
+  "private": "true",
+  "dependencies": {
+    "cheerio": "^1.2.0"
+  }
+}

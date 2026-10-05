@@ -126,7 +126,7 @@ Unique key: `(source, source_post_id)`; secondary dedupe on `content_hash`.
 
 ## 6. Build order (milestones)
 
-1. **Day 1 — feasibility spike**: script that pulls one Craigslist search (try RSS, then HTML) from this machine; confirm what fields we get and whether we get blocked. *This decides the whole ingest approach.*
+1. ~~**Day 1 — feasibility spike**~~ ✅ done 2026-10-05 — see §8.
 2. Scaffold Next.js + Drizzle + Postgres, schema + migrations.
 3. Craigslist adapter + worker with dedupe, rate limit, `fetch_run` logging, fixture tests.
 4. Listings inbox UI + filters + hide/interested.
@@ -145,3 +145,20 @@ Unique key: `(source, source_post_id)`; secondary dedupe on `content_hash`.
 - Single user or a team?
 - Which Gmail account receives replies?
 - OK to run the fetcher from this machine, or do we want a VPS + residential proxy?
+
+---
+
+## 8. Spike results (2026-10-05)
+
+Ran `spike/craigslist.mjs` from this machine (home connection, WSL).
+
+- **RSS is dead**: `?format=rss` returns **403 "Your request has been blocked."** → HTML only.
+- **Search page works**: `https://www.craigslist.org/search/area/<area>?cat=<cat>&query=<q>` (old `<city>.craigslist.org/search/jjj` URLs 301 here). Server renders a static no-JS list (`li.cl-static-search-result`) with **title, URL, location** only.
+  - Capped at **~320 newest results per search, no pagination** → poll every few hours per saved search so nothing falls off.
+  - `query=` is real full-text search (matches body, not just title).
+- **Listing page has structured data** (`#ld_posting_data`, schema.org JobPosting): company, job title, description, `datePosted`, `validThrough`, city/ZIP/geo, employment type. Plus `.attrgroup` (compensation, experience level) and `post id`. Parsing is stable because it's JSON, not markup.
+- **No blocking** at 1 request / 3 s for search + 5 listing pages. Search page ≈ 180 KB, listing ≈ 25 KB.
+- **Reposts**: the same job is reposted with a new post ID → dedupe on content hash (company + title + normalized body), not just post ID.
+- Contact/reply email still not fetched (behind CAPTCHA) — by design.
+
+**Ingest design that follows:** per saved search → fetch search page → diff URLs against DB → fetch only *new* listing pages at ~1 req/3 s → upsert. A typical run is 1 search request + a handful of detail requests.
