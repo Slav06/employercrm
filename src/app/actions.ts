@@ -6,7 +6,6 @@ import { getDb } from '@/db';
 import { activities, CHANNELS, listings, searches, type Stage } from '@/db/schema';
 import { requireUser } from '@/lib/auth';
 import { isStage, stageIndex } from '@/lib/format';
-import { FETCH_ENABLED, isIngestRunning, runAllSearches } from '@/lib/ingest';
 
 // Server Actions are reachable by direct POST, so every action checks the key itself.
 
@@ -159,18 +158,6 @@ export async function updateContact(formData: FormData) {
     })
     .where(eq(listings.id, listingId));
   refresh(listingId);
-}
-
-export async function fetchNow() {
-  await requireUser();
-  if (FETCH_ENABLED && !isIngestRunning()) {
-    // Runs in the background on the long-lived local server; progress shows up in fetch_runs.
-    runAllSearches({ log: (m) => console.log(`[ingest] ${m}`) }).then(
-      () => revalidatePath('/', 'layout'),
-      (e) => console.error('[ingest]', e),
-    );
-  }
-  revalidatePath('/', 'layout');
 }
 
 export async function saveSearch(formData: FormData) {

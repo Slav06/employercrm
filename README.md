@@ -17,7 +17,6 @@ automatically on first load.
 
 ## Getting listings
 
-- **In the app:** Dashboard → **Fetch new listings** (runs in the background; refresh to watch progress).
 - **CLI:** `npm run fetch` — runs every active search once. With local PGlite, **stop the dev server first**
   (PGlite allows one process at a time) or use the API below.
 - **Cron while the app is running:** set `CRON_SECRET` in `.env.local`, then
@@ -46,12 +45,11 @@ Sign in with **your name + a key** — a word and 2 numbers, e.g. `tiger42` (cas
 
 ## Workflow
 
-1. **Inbox** — new listings. Open the ones worth pitching, *Skip* the rest. The **User** column shows who is working each lead (the first person to pitch, reply, note or move it; reassign on the listing page).
+1. **Inbox** (home page) — new listings; we email every one. The **User** column shows who is working each lead (the first person to pitch, reply, note or move it; reassign on the listing page).
 2. Open a listing → **Open on Craigslist** → reply (Craigslist shows the employer's relay email after a CAPTCHA)
    → **Log pitch**. Stage moves to *Pitched* and a follow-up is scheduled.
 3. When they answer → **Log reply** (stage → *Replied*, follow-up due today).
 4. Move through *Meeting → Proposal → Won/Lost* on the listing page; see everything on **Pipeline**.
-5. **Dashboard** shows new listings, reply rate, follow-ups due, and fetch health.
 
 ## Deployment
 
@@ -59,7 +57,7 @@ Sign in with **your name + a key** — a word and 2 numbers, e.g. `tiger42` (cas
 - Pushing to `main` deploys automatically (or `npx vercel deploy --prod`).
 - Database: Neon Postgres (Vercel Marketplace). `.env.local` (from `vercel env pull`) points local dev and
   `npm run fetch` at the same database. Remove `DATABASE_URL` from `.env.local` to use the local PGlite DB.
-- **Fetching never runs on Vercel** (button hidden, `/api/fetch` refuses). Run `npm run fetch` on this machine.
+- **Fetching never runs on Vercel** (`/api/fetch` refuses). Run `npm run fetch` on this machine.
 
 ## Layout
 
@@ -67,7 +65,7 @@ Sign in with **your name + a key** — a word and 2 numbers, e.g. `tiger42` (cas
 src/lib/craigslist.ts   fetch + parse search pages and listing pages (JSON-LD)
 src/lib/ingest.ts       run searches, dedupe (URL + content hash for reposts), log fetch_runs
 src/db/schema.ts        searches, listings, activities (timeline), fetch_runs
-src/app/                dashboard, inbox, listing detail, pipeline, searches, /api/fetch
+src/app/                inbox (home), listing detail, pipeline, searches, users, /api/fetch
 scripts/fetch.ts        CLI fetch
 spike/                  original feasibility script
 ```

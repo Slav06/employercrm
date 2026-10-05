@@ -16,7 +16,6 @@ export const metadata: Metadata = {
 };
 
 const NAV = [
-  { href: '/', label: 'Dashboard' },
   { href: '/listings', label: 'Inbox' },
   { href: '/pipeline', label: 'Pipeline' },
   { href: '/searches', label: 'Searches' },
@@ -30,7 +29,7 @@ export default async function RootLayout({ children }: LayoutProps<'/'>) {
       <body className="min-h-full font-sans">
         <header className="border-b border-zinc-200 bg-white">
           <nav className="mx-auto flex max-w-7xl items-center gap-6 px-4 py-3">
-            <Link href="/" className="font-semibold">
+            <Link href="/listings" className="font-semibold">
               EmployerCRM
             </Link>
             {user &&

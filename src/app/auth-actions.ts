@@ -24,7 +24,7 @@ export async function login(_prev: FormState, formData: FormData): Promise<FormS
     };
   }
   await startSession(result.user.id);
-  redirect('/');
+  redirect('/listings');
 }
 
 export async function register(_prev: FormState, formData: FormData): Promise<FormState> {
@@ -46,7 +46,7 @@ export async function register(_prev: FormState, formData: FormData): Promise<Fo
   if (!user) return { name, error: 'That name is taken — add a last initial, e.g. “Maria G”.' };
   await recordAttempt('register', name, ip);
   await startSession(user.id);
-  redirect('/');
+  redirect('/listings');
 }
 
 export async function logout() {

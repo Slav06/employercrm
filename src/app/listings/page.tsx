@@ -1,6 +1,5 @@
 import { and, asc, desc, eq, ilike, isNull, or, sql, type SQL } from 'drizzle-orm';
 import Link from 'next/link';
-import { setStage } from '@/app/actions';
 import { StageBadge } from '@/components/stage-badge';
 import { getDb } from '@/db';
 import { requireUser } from '@/lib/auth';
@@ -111,8 +110,7 @@ export default async function Inbox({ searchParams }: PageProps<'/listings'>) {
               <th className="px-2 py-2 font-medium">Pay</th>
               <th className="px-2 py-2 font-medium">Posted</th>
               <th className="px-2 py-2 font-medium">Stage</th>
-              <th className="px-2 py-2 font-medium">User</th>
-              <th className="px-4 py-2" />
+              <th className="px-4 py-2 font-medium">User</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-zinc-100">
@@ -138,21 +136,12 @@ export default async function Inbox({ searchParams }: PageProps<'/listings'>) {
                 <td className="px-2 py-2">
                   <StageBadge stage={l.stage} />
                 </td>
-                <td className="whitespace-nowrap px-2 py-2 text-zinc-600">{ownerName ?? <span className="text-zinc-300">—</span>}</td>
-                <td className="whitespace-nowrap px-4 py-2 text-right">
-                  {l.stage === 'new' && (
-                    <form action={setStage}>
-                      <input type="hidden" name="id" value={l.id} />
-                      <input type="hidden" name="stage" value="skipped" />
-                      <button className="btn py-1 text-xs text-zinc-500">Skip</button>
-                    </form>
-                  )}
-                </td>
+                <td className="whitespace-nowrap px-4 py-2 text-zinc-600">{ownerName ?? <span className="text-zinc-300">—</span>}</td>
               </tr>
             ))}
             {rows.length === 0 && (
               <tr>
-                <td colSpan={7} className="px-4 py-8 text-center text-zinc-500">
+                <td colSpan={6} className="px-4 py-8 text-center text-zinc-500">
                   No listings match.
                 </td>
               </tr>

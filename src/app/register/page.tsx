@@ -6,7 +6,7 @@ import { RegisterForm } from '@/app/login/forms';
 export const dynamic = 'force-dynamic';
 
 export default async function Register() {
-  if (await getUser()) redirect('/');
+  if (await getUser()) redirect('/listings');
   return (
     <div className="mx-auto mt-16 max-w-sm">
       <RegisterForm suggestion={generateKey()} />

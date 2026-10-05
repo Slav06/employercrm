@@ -10,7 +10,7 @@ export async function GET(req: NextRequest) {
   if ('error' in result) {
     return NextResponse.redirect(new URL(`/login?error=${result.error}`, req.url));
   }
-  const res = NextResponse.redirect(new URL('/', req.url));
+  const res = NextResponse.redirect(new URL('/listings', req.url));
   const c = await createSession(result.user.id);
   res.cookies.set(c.name, c.value, c.options);
   return res;
