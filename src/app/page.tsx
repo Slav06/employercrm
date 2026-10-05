@@ -5,7 +5,7 @@ import { StageBadge } from '@/components/stage-badge';
 import { getDb } from '@/db';
 import { activities, fetchRuns, listings, searches, STAGES } from '@/db/schema';
 import { ago, daysAgo, endOfToday, fmtDate, STAGE_LABEL } from '@/lib/format';
-import { isIngestRunning } from '@/lib/ingest';
+import { FETCH_ENABLED, isIngestRunning } from '@/lib/ingest';
 
 export const dynamic = 'force-dynamic';
 
@@ -60,11 +60,15 @@ export default async function Dashboard() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-xl font-semibold">Dashboard</h1>
-        <form action={fetchNow}>
-          <button className="btn btn-primary" disabled={running}>
-            {running ? 'Fetching… (refresh to see progress)' : 'Fetch new listings'}
-          </button>
-        </form>
+        {FETCH_ENABLED ? (
+          <form action={fetchNow}>
+            <button className="btn btn-primary" disabled={running}>
+              {running ? 'Fetching… (refresh to see progress)' : 'Fetch new listings'}
+            </button>
+          </form>
+        ) : (
+          <span className="text-xs text-zinc-500">New listings are fetched from the office machine</span>
+        )}
       </div>
 
       <div className="grid grid-cols-2 gap-3 md:grid-cols-5">

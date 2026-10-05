@@ -9,6 +9,9 @@ const DELAY_MS = Number(process.env.CL_DELAY_MS ?? 3000);
 // stays polite. Search results are newest-first, so the cap keeps the freshest.
 const MAX_NEW_PER_SEARCH = Number(process.env.CL_MAX_NEW_PER_SEARCH ?? 60);
 
+// Craigslist blocks cloud IPs, so the deployed app never fetches; this machine does.
+export const FETCH_ENABLED = !process.env.VERCEL;
+
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 export function contentHash(company: string | null, title: string, body: string | null) {
@@ -116,6 +119,7 @@ export function isIngestRunning() {
 }
 
 export function runAllSearches(opts: { searchIds?: number[]; log?: (m: string) => void } = {}) {
+  if (!FETCH_ENABLED) throw new Error('Fetching is disabled on Vercel — run `npm run fetch` locally');
   if (g.__ingestRunning) return g.__ingestRunning;
   g.__ingestRunning = (async () => {
     const db = await getDb();

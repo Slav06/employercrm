@@ -7,7 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "fetch": "tsx scripts/fetch.ts",
+    "fetch": "tsx --env-file-if-exists=.env.local scripts/fetch.ts",
     "db:generate": "drizzle-kit generate"
   },
   "dependencies": {

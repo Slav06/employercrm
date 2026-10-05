@@ -9,6 +9,8 @@ const geistMono = Geist_Mono({ variable: '--font-geist-mono', subsets: ['latin']
 export const metadata: Metadata = {
   title: 'EmployerCRM',
   description: 'Find businesses that are hiring, pitch them, track replies.',
+  // No login, so keep it out of search engines.
+  robots: { index: false, follow: false },
 };
 
 const NAV = [

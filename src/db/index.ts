@@ -6,7 +6,8 @@ import { seedSearches } from './seed';
 
 // DATABASE_URL set → real Postgres (Neon). Unset → embedded PGlite in ./data/pglite.
 // PGlite is single-process: while the dev server runs, trigger fetches through the
-// app (button or POST /api/fetch), not `npm run fetch`.
+// app (button or POST /api/fetch), not `npm run fetch`. Remove DATABASE_URL from
+// .env.local to go back to PGlite.
 export type DB = PgliteDatabase<typeof schema>;
 
 const g = globalThis as unknown as { __db?: Promise<DB> };
@@ -18,8 +19,12 @@ async function init(): Promise<DB> {
   if (process.env.DATABASE_URL) {
     const { drizzle } = await import('drizzle-orm/postgres-js');
     const { migrate } = await import('drizzle-orm/postgres-js/migrator');
-    const pgdb = drizzle(process.env.DATABASE_URL, { schema });
-    await migrate(pgdb, { migrationsFolder });
+    // Migrate over a direct connection; serve queries through Neon's pooler
+    // (transaction mode → no prepared statements).
+    const direct = drizzle({ connection: { url: process.env.DATABASE_URL_UNPOOLED ?? process.env.DATABASE_URL, max: 1 } });
+    await migrate(direct, { migrationsFolder });
+    await direct.$client.end();
+    const pgdb = drizzle({ connection: { url: process.env.DATABASE_URL, prepare: false }, schema });
     db = pgdb as unknown as DB;
   } else {
     const { PGlite } = await import('@electric-sql/pglite');

@@ -1,4 +1,4 @@
-import { isIngestRunning, runAllSearches } from '@/lib/ingest';
+import { FETCH_ENABLED, isIngestRunning, runAllSearches } from '@/lib/ingest';
 
 // Trigger a fetch from cron while the app is running locally:
 //   curl -X POST -H "authorization: Bearer $CRON_SECRET" http://localhost:3000/api/fetch
@@ -8,6 +8,7 @@ export async function POST(req: Request) {
   if (!secret || req.headers.get('authorization') !== `Bearer ${secret}`) {
     return Response.json({ error: 'unauthorized' }, { status: 401 });
   }
+  if (!FETCH_ENABLED) return Response.json({ error: 'fetching runs locally, not on Vercel' }, { status: 403 });
   if (isIngestRunning()) return Response.json({ status: 'already running' }, { status: 409 });
   const runs = await runAllSearches({ log: (m) => console.log(`[ingest] ${m}`) });
   return Response.json({ runs });

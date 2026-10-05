@@ -5,10 +5,10 @@ import { revalidatePath } from 'next/cache';
 import { getDb } from '@/db';
 import { activities, CHANNELS, listings, searches, type Stage } from '@/db/schema';
 import { isStage, stageIndex } from '@/lib/format';
-import { isIngestRunning, runAllSearches } from '@/lib/ingest';
+import { FETCH_ENABLED, isIngestRunning, runAllSearches } from '@/lib/ingest';
 
-// NOTE: no auth yet — the app is local-only. Add access control before deploying
-// (Server Actions are reachable by direct POST).
+// NOTE: no auth by choice — anyone with the URL can view and edit. Server Actions
+// are reachable by direct POST, so add access control here if that changes.
 
 const str = (f: FormData, k: string) => {
   const v = f.get(k);
@@ -128,7 +128,7 @@ export async function updateContact(formData: FormData) {
 }
 
 export async function fetchNow() {
-  if (!isIngestRunning()) {
+  if (FETCH_ENABLED && !isIngestRunning()) {
     // Runs in the background on the long-lived local server; progress shows up in fetch_runs.
     runAllSearches({ log: (m) => console.log(`[ingest] ${m}`) }).then(
       () => revalidatePath('/', 'layout'),
