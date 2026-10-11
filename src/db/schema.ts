@@ -225,6 +225,23 @@ export const companies = pgTable(
   (t) => [uniqueIndex('companies_name_lower_idx').on(sql`lower(${t.name})`)],
 );
 
+// Reusable email templates, optionally scoped to a Craigslist category (''/null = any).
+// The composer on a listing offers the templates whose category matches the lead (or any),
+// filling the subject and body with the lead's details via {{company}} {{job}} etc.
+export const emailTemplates = pgTable(
+  'email_templates',
+  {
+    id: serial('id').primaryKey(),
+    name: text('name').notNull(),
+    category: text('category').notNull().default(''), // '' = applies to every category
+    subject: text('subject').notNull().default(''),
+    body: text('body').notNull().default(''),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index('email_templates_category_idx').on(t.category)],
+);
+
 export const fetchRuns = pgTable('fetch_runs', {
   id: serial('id').primaryKey(),
   searchId: integer('search_id').references(() => searches.id, { onDelete: 'cascade' }),
@@ -244,3 +261,4 @@ export type FetchRun = typeof fetchRuns.$inferSelect;
 export type GmailAccount = typeof gmailAccounts.$inferSelect;
 export type EmailMessage = typeof emailMessages.$inferSelect;
 export type Company = typeof companies.$inferSelect;
+export type EmailTemplate = typeof emailTemplates.$inferSelect;

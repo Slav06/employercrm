@@ -2,7 +2,7 @@ import { mkdirSync } from 'node:fs';
 import path from 'node:path';
 import type { PgliteDatabase } from 'drizzle-orm/pglite';
 import * as schema from './schema';
-import { seedSearches } from './seed';
+import { seedSearches, seedTemplates } from './seed';
 
 // DATABASE_URL set → real Postgres (Neon). Unset → embedded PGlite in ./data/pglite.
 // PGlite is single-process: while the dev server runs, trigger fetches through the
@@ -38,6 +38,7 @@ async function init(): Promise<DB> {
   }
 
   await seedSearches(db);
+  await seedTemplates(db);
   return db;
 }
 

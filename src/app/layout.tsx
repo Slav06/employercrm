@@ -21,6 +21,7 @@ const NAV = [
   { href: '/listings', label: 'Inbox' },
   { href: '/pipeline', label: 'Pipeline' },
   { href: '/searches', label: 'Searches' },
+  { href: '/templates', label: 'Templates' },
 ];
 
 export default async function RootLayout({ children }: LayoutProps<'/'>) {

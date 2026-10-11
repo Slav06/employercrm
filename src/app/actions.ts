@@ -3,7 +3,8 @@
 import { eq, sql } from 'drizzle-orm';
 import { revalidatePath } from 'next/cache';
 import { getDb } from '@/db';
-import { activities, CHANNELS, companies, listings, searches } from '@/db/schema';
+import { activities, CHANNELS, companies, emailTemplates, listings, searches } from '@/db/schema';
+import { CATEGORIES } from '@/db/seed';
 import { requireUser } from '@/lib/auth';
 import { fetchCompany } from '@/lib/enrich';
 import { isStage } from '@/lib/format';
@@ -145,6 +146,34 @@ export async function researchCompany(formData: FormData) {
   if (cached) await db.update(companies).set(row).where(eq(companies.id, cached.id));
   else await db.insert(companies).values(row);
   refresh(listingId);
+}
+
+export async function saveTemplate(formData: FormData) {
+  await requireUser();
+  const db = await getDb();
+  const name = str(formData, 'name');
+  if (!name) throw new Error('Give the template a name.');
+  const category = String(formData.get('category') ?? '').trim();
+  if (category && !(category in CATEGORIES)) throw new Error('Unknown category.');
+  const values = {
+    name,
+    category,
+    subject: str(formData, 'subject') ?? '',
+    body: str(formData, 'body') ?? '',
+    updatedAt: new Date(),
+  };
+  const existing = formData.get('id');
+  if (existing) await db.update(emailTemplates).set(values).where(eq(emailTemplates.id, id(formData)));
+  else await db.insert(emailTemplates).values(values);
+  revalidatePath('/templates');
+  revalidatePath('/listings', 'layout');
+}
+
+export async function deleteTemplate(formData: FormData) {
+  await requireUser();
+  const db = await getDb();
+  await db.delete(emailTemplates).where(eq(emailTemplates.id, id(formData)));
+  revalidatePath('/templates');
 }
 
 export async function saveSearch(formData: FormData) {

@@ -43,6 +43,13 @@
       "when": 1791692352974,
       "tag": "0005_companies",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1791701654888,
+      "tag": "0006_email_templates",
+      "breakpoints": true
     }
   ]
 }

@@ -1,12 +1,12 @@
-import { and, asc, desc, eq, sql } from 'drizzle-orm';
+import { and, asc, desc, eq, or, sql } from 'drizzle-orm';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { addNote, logPitch, logReply, researchCompany, setFollowUp, setOwner, setStage, updateContact } from '@/app/actions';
-import { sendEmail } from '@/app/gmail-actions';
 import { StageBadge } from '@/components/stage-badge';
 import { getDb } from '@/db';
 import { requireUser } from '@/lib/auth';
-import { activities, CHANNELS, companies, emailMessages, gmailAccounts, listings, STAGES, users, type Activity, type Company } from '@/db/schema';
+import { activities, CHANNELS, companies, emailMessages, emailTemplates, gmailAccounts, listings, STAGES, users, type Activity, type Company } from '@/db/schema';
+import { EmailComposer } from './email-composer';
 import { AREAS, CATEGORIES } from '@/db/seed';
 import { enrichConfigured } from '@/lib/enrich';
 import { gmailConfigured } from '@/lib/gmail/google';
@@ -41,6 +41,22 @@ export default async function ListingPage({ params }: PageProps<'/listings/[id]'
         .limit(1)
     : [];
   const sendTo = l.relayEmail ?? l.contactEmail ?? (lastMine?.direction === 'received' ? lastMine.fromAddr : null) ?? '';
+
+  // Templates for this lead: ones scoped to its category, plus the any-category ones.
+  const templates = myGmail
+    ? await db
+        .select({ id: emailTemplates.id, name: emailTemplates.name, subject: emailTemplates.subject, body: emailTemplates.body })
+        .from(emailTemplates)
+        .where(l.category ? or(eq(emailTemplates.category, l.category), eq(emailTemplates.category, '')) : eq(emailTemplates.category, ''))
+        .orderBy(asc(emailTemplates.name))
+    : [];
+  const templateVars = {
+    company: l.company ?? '',
+    job: l.jobTitle ?? l.title,
+    title: l.title,
+    city: l.city ?? l.location ?? '',
+    me: user.name,
+  };
   const timeline = await db
     .select({ a: activities, by: users.name })
     .from(activities)
@@ -125,6 +141,8 @@ export default async function ListingPage({ params }: PageProps<'/listings/[id]'
             to={sendTo}
             subject={l.title}
             threaded={Boolean(lastMine)}
+            templates={templates}
+            vars={templateVars}
           />
 
           <form action={logPitch} className="card space-y-2">
@@ -276,53 +294,6 @@ function CompanyResearch({ listing, info }: { listing: { id: number; company: st
 }
 
 const withProtocol = (u: string) => (/^https?:\/\//i.test(u) ? u : `https://${u}`);
-
-function EmailComposer({
-  listingId,
-  configured,
-  fromEmail,
-  to,
-  subject,
-  threaded,
-}: {
-  listingId: number;
-  configured: boolean;
-  fromEmail: string | undefined;
-  to: string;
-  subject: string;
-  threaded: boolean;
-}) {
-  return (
-    <form action={sendEmail} className="card space-y-2">
-      <div className="flex items-center justify-between gap-2">
-        <h2 className="text-sm font-semibold">{threaded ? 'Reply by email' : 'Send email'}</h2>
-        {fromEmail && <span className="truncate text-xs text-zinc-400">from {fromEmail}</span>}
-      </div>
-      {!configured ? (
-        <p className="text-sm text-zinc-500">Email sending isn’t set up on this workspace yet.</p>
-      ) : !fromEmail ? (
-        <p className="text-sm text-zinc-500">
-          Connect your Gmail in{' '}
-          <Link href="/settings" className="text-indigo-600 hover:underline">
-            Settings
-          </Link>{' '}
-          to send from the CRM.
-        </p>
-      ) : (
-        <>
-          <input type="hidden" name="id" value={listingId} />
-          <input name="to" defaultValue={to} placeholder="Recipient email" required className="input" />
-          <input name="subject" defaultValue={subject} placeholder="Subject" className="input" />
-          <textarea name="body" rows={5} placeholder="Write your message…" required className="input" />
-          <p className="text-xs text-zinc-500">
-            {threaded ? 'Continues the existing email thread. ' : ''}Goes out from your Gmail and is logged as a pitch here.
-          </p>
-          <button className="btn btn-primary w-full">{threaded ? 'Send reply' : 'Send email'}</button>
-        </>
-      )}
-    </form>
-  );
-}
 
 function Field({ label, value }: { label: string; value: string | null | undefined }) {
   return (
