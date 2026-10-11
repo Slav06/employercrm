@@ -4,7 +4,7 @@ import { redirect } from 'next/navigation';
 import { cache } from 'react';
 import { getDb } from '@/db';
 import { authAttempts, sessions, users, type User } from '@/db/schema';
-import { SESSION_COOKIE } from './auth-cookie';
+import { REMEMBER_COOKIE, SESSION_COOKIE } from './auth-cookie';
 import { hashToken, newSessionToken, verifyKey } from './auth-key';
 
 export { SESSION_COOKIE };
@@ -22,6 +22,25 @@ const cookieOptions = {
   path: '/',
   maxAge: ONE_YEAR,
 };
+
+// The remembered name is not a credential, so it outlives the session (kept on logout)
+// and never gates anything — it only prefills the login page so you just type your key.
+const rememberOptions = { ...cookieOptions };
+
+// Reads the remembered name on this device (login page prefill).
+export async function rememberedName() {
+  return (await cookies()).get(REMEMBER_COOKIE)?.value?.trim() || null;
+}
+
+// Sets the remembered name from a Server Action (login/register).
+export async function rememberName(name: string) {
+  (await cookies()).set(REMEMBER_COOKIE, name, rememberOptions);
+}
+
+// Same, as a cookie descriptor for a Route Handler response (the /auth link).
+export function rememberCookie(name: string) {
+  return { name: REMEMBER_COOKIE, value: name, options: rememberOptions };
+}
 
 export async function clientIp() {
   const h = await headers();

@@ -3,7 +3,7 @@
 import { redirect } from 'next/navigation';
 import { getDb } from '@/db';
 import { users } from '@/db/schema';
-import { checkLogin, clientIp, endSession, findUserByName, recordAttempt, signupsBlocked, startSession } from '@/lib/auth';
+import { checkLogin, clientIp, endSession, findUserByName, recordAttempt, rememberName, signupsBlocked, startSession } from '@/lib/auth';
 import { hashKey, isValidKey, KEY_RULE, normalizeKey } from '@/lib/auth-key';
 
 export type FormState = { error: string; name?: string } | null;
@@ -24,6 +24,7 @@ export async function login(_prev: FormState, formData: FormData): Promise<FormS
     };
   }
   await startSession(result.user.id);
+  await rememberName(result.user.name);
   redirect('/listings');
 }
 
@@ -46,6 +47,7 @@ export async function register(_prev: FormState, formData: FormData): Promise<Fo
   if (!user) return { name, error: 'That name is taken — add a last initial, e.g. “Maria G”.' };
   await recordAttempt('register', name, ip);
   await startSession(user.id);
+  await rememberName(user.name);
   redirect('/listings');
 }
 

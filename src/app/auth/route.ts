@@ -1,5 +1,5 @@
 import { NextResponse, type NextRequest } from 'next/server';
-import { checkLogin, clientIp, createSession } from '@/lib/auth';
+import { checkLogin, clientIp, createSession, rememberCookie } from '@/lib/auth';
 import { normalizeKey } from '@/lib/auth-key';
 
 // One-click login link: /auth?name=Maria&key=tiger42
@@ -13,5 +13,7 @@ export async function GET(req: NextRequest) {
   const res = NextResponse.redirect(new URL('/listings', req.url));
   const c = await createSession(result.user.id);
   res.cookies.set(c.name, c.value, c.options);
+  const r = rememberCookie(result.user.name);
+  res.cookies.set(r.name, r.value, r.options);
   return res;
 }

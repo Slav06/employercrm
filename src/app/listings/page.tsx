@@ -112,6 +112,8 @@ export default async function Inbox({ searchParams }: PageProps<'/listings'>) {
           <thead className="border-b border-zinc-200 text-left text-xs text-zinc-500">
             <tr>
               <th className="px-4 py-2 font-medium">Listing</th>
+              <th className="px-2 py-2 font-medium">Position</th>
+              <th className="px-2 py-2 font-medium">Category</th>
               <th className="px-2 py-2 font-medium">Where</th>
               <th className="px-2 py-2 font-medium">Pay</th>
               <th className="px-2 py-2 font-medium">Posted</th>
@@ -127,10 +129,26 @@ export default async function Inbox({ searchParams }: PageProps<'/listings'>) {
                     {l.title}
                   </Link>
                   <div className="truncate text-xs text-zinc-500">
-                    {l.company ?? 'Company not listed'}
+                    {l.company ? (
+                      <a
+                        href={`https://www.google.com/search?q=${encodeURIComponent(`${l.company} ${l.city ?? l.location ?? ''}`.trim())}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="hover:underline"
+                        title={`Research ${l.company}`}
+                      >
+                        {l.company} <span aria-hidden>↗</span>
+                      </a>
+                    ) : (
+                      'Company not listed'
+                    )}
                     {l.repostCount > 0 && <span className="ml-2 text-amber-700">reposted ×{l.repostCount}</span>}
                   </div>
                 </td>
+                <td className="max-w-40 truncate px-2 py-2 text-zinc-600" title={l.jobTitle ?? ''}>
+                  {l.jobTitle ?? '—'}
+                </td>
+                <td className="whitespace-nowrap px-2 py-2 text-zinc-600">{(l.category && CATEGORIES[l.category]) || l.category || '—'}</td>
                 <td className="px-2 py-2 text-zinc-600">
                   <div className="truncate">{l.city ?? l.location}</div>
                   <div className="text-xs text-zinc-400">{l.area && AREAS[l.area]}</div>
@@ -147,7 +165,7 @@ export default async function Inbox({ searchParams }: PageProps<'/listings'>) {
             ))}
             {rows.length === 0 && (
               <tr>
-                <td colSpan={6} className="px-4 py-8 text-center text-zinc-500">
+                <td colSpan={8} className="px-4 py-8 text-center text-zinc-500">
                   No listings match.
                 </td>
               </tr>

@@ -9,19 +9,42 @@ const NOTICE: Record<string, string> = {
   throttled: 'Too many wrong tries. Wait 15 minutes and try again.',
 };
 
-export function LoginForm({ notice }: { notice?: string }) {
+export function LoginForm({ notice, rememberedName }: { notice?: string; rememberedName?: string }) {
   const [state, action, pending] = useActionState<FormState, FormData>(login, null);
   const error = state?.error ?? (notice ? NOTICE[notice] : undefined);
+  // After the first sign-in on this device we remember the name, so we only ask for the key.
+  const remembered = rememberedName ?? state?.name;
   return (
     <form action={action} className="card space-y-3">
       <h1 className="text-lg font-semibold">Sign in</h1>
-      <div>
-        <label className="label">Your name</label>
-        <input name="name" defaultValue={state?.name} autoComplete="username" required autoFocus className="input" />
-      </div>
+      {remembered ? (
+        <div>
+          <label className="label">Signing in as</label>
+          <div className="flex items-center justify-between gap-2">
+            <span className="font-medium">{remembered}</span>
+            <Link href="/login?switch=1" className="text-sm text-zinc-500 hover:underline">
+              Not you?
+            </Link>
+          </div>
+          <input type="hidden" name="name" value={remembered} />
+        </div>
+      ) : (
+        <div>
+          <label className="label">Your name</label>
+          <input name="name" defaultValue={state?.name} autoComplete="username" required autoFocus className="input" />
+        </div>
+      )}
       <div>
         <label className="label">Your key</label>
-        <input name="key" type="password" autoComplete="current-password" placeholder="e.g. tiger42" required className="input" />
+        <input
+          name="key"
+          type="password"
+          autoComplete="current-password"
+          placeholder="e.g. tiger42"
+          required
+          autoFocus={!!remembered}
+          className="input"
+        />
       </div>
       {error && <p className="text-sm text-red-600">{error}</p>}
       <button className="btn btn-primary w-full" disabled={pending}>
