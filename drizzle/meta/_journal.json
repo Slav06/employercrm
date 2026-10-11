@@ -36,6 +36,13 @@
       "when": 1791218698968,
       "tag": "0004_gmail",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1791692352974,
+      "tag": "0005_companies",
+      "breakpoints": true
     }
   ]
 }

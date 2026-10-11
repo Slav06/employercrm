@@ -200,6 +200,31 @@ export const emailMessages = pgTable(
   ],
 );
 
+// Firmographics for a company name, fetched once from the enrichment API (People Data
+// Labs) and cached here. Keyed by lower(name) so every listing for the same employer
+// shares one lookup. status 'not_found'/'error' is cached too, so we don't keep paying
+// for misses; re-running Research overwrites the row.
+export const companies = pgTable(
+  'companies',
+  {
+    id: serial('id').primaryKey(),
+    name: text('name').notNull(), // the company name we looked up (as on the listing)
+    status: text('status').$type<'ok' | 'not_found' | 'error'>().notNull(),
+    displayName: text('display_name'),
+    industry: text('industry'),
+    employeeCount: integer('employee_count'),
+    sizeRange: text('size_range'), // e.g. "11-50"
+    revenue: text('revenue'), // inferred revenue range, e.g. "$10M-$25M"
+    foundedYear: integer('founded_year'),
+    website: text('website'),
+    linkedinUrl: text('linkedin_url'),
+    location: text('location'),
+    raw: jsonb('raw').$type<Record<string, unknown>>(),
+    fetchedAt: timestamp('fetched_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [uniqueIndex('companies_name_lower_idx').on(sql`lower(${t.name})`)],
+);
+
 export const fetchRuns = pgTable('fetch_runs', {
   id: serial('id').primaryKey(),
   searchId: integer('search_id').references(() => searches.id, { onDelete: 'cascade' }),
@@ -218,3 +243,4 @@ export type Activity = typeof activities.$inferSelect;
 export type FetchRun = typeof fetchRuns.$inferSelect;
 export type GmailAccount = typeof gmailAccounts.$inferSelect;
 export type EmailMessage = typeof emailMessages.$inferSelect;
+export type Company = typeof companies.$inferSelect;

@@ -1,10 +1,11 @@
 'use server';
 
-import { eq } from 'drizzle-orm';
+import { eq, sql } from 'drizzle-orm';
 import { revalidatePath } from 'next/cache';
 import { getDb } from '@/db';
-import { activities, CHANNELS, listings, searches } from '@/db/schema';
+import { activities, CHANNELS, companies, listings, searches } from '@/db/schema';
 import { requireUser } from '@/lib/auth';
+import { fetchCompany } from '@/lib/enrich';
 import { isStage } from '@/lib/format';
 import { claim, moveStage, recordPitch, recordReply } from '@/lib/pipeline';
 
@@ -114,6 +115,35 @@ export async function updateContact(formData: FormData) {
       updatedAt: new Date(),
     })
     .where(eq(listings.id, listingId));
+  refresh(listingId);
+}
+
+// Fetch (or refresh) firmographics for a listing's company and cache them in `companies`.
+// A cache hit returns immediately and costs nothing; only a miss (or ?refresh) calls PDL.
+export async function researchCompany(formData: FormData) {
+  await requireUser();
+  const listingId = id(formData);
+  const refreshCache = str(formData, 'refresh') === '1';
+  const db = await getDb();
+
+  const [l] = await db.select({ company: listings.company, region: listings.region }).from(listings).where(eq(listings.id, listingId));
+  const name = l?.company?.trim();
+  if (!name) return; // nothing to look up
+
+  const [cached] = await db.select().from(companies).where(sql`lower(${companies.name}) = lower(${name})`);
+  if (cached && !refreshCache) {
+    refresh(listingId);
+    return;
+  }
+
+  const result = await fetchCompany(name, l?.region ?? 'florida');
+  const row =
+    result.status === 'ok'
+      ? { name, status: 'ok' as const, ...result.facts, raw: result.raw, fetchedAt: new Date() }
+      : { name, status: result.status === 'not_found' ? ('not_found' as const) : ('error' as const), fetchedAt: new Date() };
+
+  if (cached) await db.update(companies).set(row).where(eq(companies.id, cached.id));
+  else await db.insert(companies).values(row);
   refresh(listingId);
 }
 

@@ -1,12 +1,13 @@
-import { asc, desc, eq } from 'drizzle-orm';
+import { asc, desc, eq, sql } from 'drizzle-orm';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
-import { addNote, logPitch, logReply, setFollowUp, setOwner, setStage, updateContact } from '@/app/actions';
+import { addNote, logPitch, logReply, researchCompany, setFollowUp, setOwner, setStage, updateContact } from '@/app/actions';
 import { StageBadge } from '@/components/stage-badge';
 import { getDb } from '@/db';
 import { requireUser } from '@/lib/auth';
-import { activities, CHANNELS, listings, STAGES, users, type Activity } from '@/db/schema';
+import { activities, CHANNELS, companies, listings, STAGES, users, type Activity, type Company } from '@/db/schema';
 import { AREAS, CATEGORIES } from '@/db/seed';
+import { enrichConfigured } from '@/lib/enrich';
 import { CHANNEL_LABEL, fmtDate, STAGE_LABEL } from '@/lib/format';
 
 export const dynamic = 'force-dynamic';
@@ -22,6 +23,9 @@ export default async function ListingPage({ params }: PageProps<'/listings/[id]'
   if (!l) notFound();
   const people = await db.select({ id: users.id, name: users.name }).from(users).orderBy(asc(users.name));
   const ownerName = people.find((p) => p.id === l.ownerId)?.name;
+  const [companyInfo] = l.company
+    ? await db.select().from(companies).where(sql`lower(${companies.name}) = lower(${l.company})`)
+    : [];
   const timeline = await db
     .select({ a: activities, by: users.name })
     .from(activities)
@@ -71,6 +75,8 @@ export default async function ListingPage({ params }: PageProps<'/listings/[id]'
             {l.repostCount > 0 && <Field label="Reposted" value={`${l.repostCount}×`} />}
             <Field label="Job title" value={l.jobTitle} />
           </div>
+
+          <CompanyResearch listing={l} info={companyInfo} />
 
           <div className="card">
             <h2 className="mb-2 text-sm font-semibold">Posting</h2>
@@ -185,6 +191,67 @@ export default async function ListingPage({ params }: PageProps<'/listings/[id]'
     </div>
   );
 }
+
+function CompanyResearch({ listing, info }: { listing: { id: number; company: string | null }; info: Company | undefined }) {
+  const employees = info?.employeeCount ? info.employeeCount.toLocaleString() : info?.sizeRange;
+  return (
+    <div className="card space-y-3">
+      <div className="flex items-center justify-between">
+        <h2 className="text-sm font-semibold">Company research</h2>
+        {listing.company && (enrichConfigured() || info) && (
+          <form action={researchCompany}>
+            <input type="hidden" name="id" value={listing.id} />
+            {info && <input type="hidden" name="refresh" value="1" />}
+            <button className="btn text-xs">{info ? 'Refresh' : 'Research'}</button>
+          </form>
+        )}
+      </div>
+
+      {!listing.company ? (
+        <p className="text-sm text-zinc-500">No company name on this listing.</p>
+      ) : !info && !enrichConfigured() ? (
+        <p className="text-sm text-zinc-500">Enrichment isn’t set up yet — add a PDL_API_KEY to turn it on.</p>
+      ) : !info ? (
+        <p className="text-sm text-zinc-500">Not researched yet — click Research to look up {listing.company}.</p>
+      ) : info.status === 'not_found' ? (
+        <p className="text-sm text-zinc-500">No match found for “{listing.company}”. Common for very small or new businesses.</p>
+      ) : info.status === 'error' ? (
+        <p className="text-sm text-amber-700">Lookup failed — check the API key/credits and try Refresh.</p>
+      ) : (
+        <>
+          <div className="grid grid-cols-2 gap-3 text-sm md:grid-cols-3">
+            <Field label="Industry" value={info.industry} />
+            <Field label="Employees" value={employees} />
+            <Field label="Revenue" value={info.revenue} />
+            <Field label="Founded" value={info.foundedYear ? String(info.foundedYear) : null} />
+            <Field label="Location" value={info.location} />
+            <div className="min-w-0">
+              <div className="text-xs text-zinc-500">Links</div>
+              <div className="flex gap-3 truncate">
+                {info.website ? (
+                  <a href={withProtocol(info.website)} target="_blank" rel="noreferrer" className="text-indigo-600 hover:underline">
+                    Website ↗
+                  </a>
+                ) : null}
+                {info.linkedinUrl ? (
+                  <a href={withProtocol(info.linkedinUrl)} target="_blank" rel="noreferrer" className="text-indigo-600 hover:underline">
+                    LinkedIn ↗
+                  </a>
+                ) : null}
+                {!info.website && !info.linkedinUrl && '—'}
+              </div>
+            </div>
+          </div>
+          <p className="text-xs text-zinc-400">
+            {info.displayName && info.displayName !== listing.company ? `Matched “${info.displayName}” · ` : ''}via People Data Labs · {fmtDate(info.fetchedAt, true)}
+          </p>
+        </>
+      )}
+    </div>
+  );
+}
+
+const withProtocol = (u: string) => (/^https?:\/\//i.test(u) ? u : `https://${u}`);
 
 function Field({ label, value }: { label: string; value: string | null | undefined }) {
   return (

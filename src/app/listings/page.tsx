@@ -4,7 +4,7 @@ import { after } from 'next/server';
 import { StageBadge } from '@/components/stage-badge';
 import { getDb } from '@/db';
 import { requireUser } from '@/lib/auth';
-import { listings, STAGES, users } from '@/db/schema';
+import { companies, listings, STAGES, users } from '@/db/schema';
 import { AREAS, CATEGORIES } from '@/db/seed';
 import { ago, isStage, STAGE_LABEL } from '@/lib/format';
 import { gmailConfigured } from '@/lib/gmail/google';
@@ -41,9 +41,10 @@ export default async function Inbox({ searchParams }: PageProps<'/listings'>) {
   const db = await getDb();
   const [rows, people] = await Promise.all([
     db
-      .select({ l: listings, ownerName: users.name })
+      .select({ l: listings, ownerName: users.name, company: companies })
       .from(listings)
       .leftJoin(users, eq(users.id, listings.ownerId))
+      .leftJoin(companies, sql`lower(${companies.name}) = lower(${listings.company})`)
       .where(where.length ? and(...where) : undefined)
       .orderBy(desc(sql`coalesce(${listings.postedAt}, ${listings.firstSeenAt})`))
       .limit(PAGE_SIZE),
@@ -122,7 +123,7 @@ export default async function Inbox({ searchParams }: PageProps<'/listings'>) {
             </tr>
           </thead>
           <tbody className="divide-y divide-zinc-100">
-            {rows.map(({ l, ownerName }) => (
+            {rows.map(({ l, ownerName, company }) => (
               <tr key={l.id} className="hover:bg-zinc-50">
                 <td className="max-w-md px-4 py-2">
                   <Link href={`/listings/${l.id}`} className="block truncate font-medium hover:underline">
@@ -144,6 +145,13 @@ export default async function Inbox({ searchParams }: PageProps<'/listings'>) {
                     )}
                     {l.repostCount > 0 && <span className="ml-2 text-amber-700">reposted ×{l.repostCount}</span>}
                   </div>
+                  {company?.status === 'ok' && (company.industry || company.employeeCount || company.sizeRange) && (
+                    <div className="truncate text-xs text-zinc-400">
+                      {[company.industry, company.employeeCount ? `${company.employeeCount.toLocaleString()} emp` : company.sizeRange]
+                        .filter(Boolean)
+                        .join(' · ')}
+                    </div>
+                  )}
                 </td>
                 <td className="max-w-40 truncate px-2 py-2 text-zinc-600" title={l.jobTitle ?? ''}>
                   {l.jobTitle ?? '—'}
