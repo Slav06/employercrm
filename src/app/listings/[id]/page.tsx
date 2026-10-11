@@ -1,19 +1,21 @@
-import { asc, desc, eq, sql } from 'drizzle-orm';
+import { and, asc, desc, eq, sql } from 'drizzle-orm';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { addNote, logPitch, logReply, researchCompany, setFollowUp, setOwner, setStage, updateContact } from '@/app/actions';
+import { sendEmail } from '@/app/gmail-actions';
 import { StageBadge } from '@/components/stage-badge';
 import { getDb } from '@/db';
 import { requireUser } from '@/lib/auth';
-import { activities, CHANNELS, companies, listings, STAGES, users, type Activity, type Company } from '@/db/schema';
+import { activities, CHANNELS, companies, emailMessages, gmailAccounts, listings, STAGES, users, type Activity, type Company } from '@/db/schema';
 import { AREAS, CATEGORIES } from '@/db/seed';
 import { enrichConfigured } from '@/lib/enrich';
+import { gmailConfigured } from '@/lib/gmail/google';
 import { CHANNEL_LABEL, fmtDate, STAGE_LABEL } from '@/lib/format';
 
 export const dynamic = 'force-dynamic';
 
 export default async function ListingPage({ params }: PageProps<'/listings/[id]'>) {
-  await requireUser();
+  const user = await requireUser();
   const { id } = await params;
   const listingId = Number(id);
   if (!Number.isInteger(listingId)) notFound();
@@ -26,6 +28,19 @@ export default async function ListingPage({ params }: PageProps<'/listings/[id]'
   const [companyInfo] = l.company
     ? await db.select().from(companies).where(sql`lower(${companies.name}) = lower(${l.company})`)
     : [];
+
+  // Email composer state: does the signed-in user have Gmail connected, and is there already
+  // a thread for this lead in their mailbox (so the composer acts as a reply)?
+  const [myGmail] = await db.select({ email: gmailAccounts.email }).from(gmailAccounts).where(eq(gmailAccounts.userId, user.id));
+  const [lastMine] = myGmail
+    ? await db
+        .select({ at: emailMessages.at, fromAddr: emailMessages.fromAddr, direction: emailMessages.direction })
+        .from(emailMessages)
+        .where(and(eq(emailMessages.userId, user.id), eq(emailMessages.listingId, listingId)))
+        .orderBy(desc(emailMessages.at))
+        .limit(1)
+    : [];
+  const sendTo = l.relayEmail ?? l.contactEmail ?? (lastMine?.direction === 'received' ? lastMine.fromAddr : null) ?? '';
   const timeline = await db
     .select({ a: activities, by: users.name })
     .from(activities)
@@ -103,6 +118,15 @@ export default async function ListingPage({ params }: PageProps<'/listings/[id]'
         </div>
 
         <div className="space-y-4">
+          <EmailComposer
+            listingId={l.id}
+            configured={gmailConfigured()}
+            fromEmail={myGmail?.email}
+            to={sendTo}
+            subject={l.title}
+            threaded={Boolean(lastMine)}
+          />
+
           <form action={logPitch} className="card space-y-2">
             <h2 className="text-sm font-semibold">Log pitch</h2>
             <p className="text-xs text-zinc-500">
@@ -252,6 +276,53 @@ function CompanyResearch({ listing, info }: { listing: { id: number; company: st
 }
 
 const withProtocol = (u: string) => (/^https?:\/\//i.test(u) ? u : `https://${u}`);
+
+function EmailComposer({
+  listingId,
+  configured,
+  fromEmail,
+  to,
+  subject,
+  threaded,
+}: {
+  listingId: number;
+  configured: boolean;
+  fromEmail: string | undefined;
+  to: string;
+  subject: string;
+  threaded: boolean;
+}) {
+  return (
+    <form action={sendEmail} className="card space-y-2">
+      <div className="flex items-center justify-between gap-2">
+        <h2 className="text-sm font-semibold">{threaded ? 'Reply by email' : 'Send email'}</h2>
+        {fromEmail && <span className="truncate text-xs text-zinc-400">from {fromEmail}</span>}
+      </div>
+      {!configured ? (
+        <p className="text-sm text-zinc-500">Email sending isn’t set up on this workspace yet.</p>
+      ) : !fromEmail ? (
+        <p className="text-sm text-zinc-500">
+          Connect your Gmail in{' '}
+          <Link href="/settings" className="text-indigo-600 hover:underline">
+            Settings
+          </Link>{' '}
+          to send from the CRM.
+        </p>
+      ) : (
+        <>
+          <input type="hidden" name="id" value={listingId} />
+          <input name="to" defaultValue={to} placeholder="Recipient email" required className="input" />
+          <input name="subject" defaultValue={subject} placeholder="Subject" className="input" />
+          <textarea name="body" rows={5} placeholder="Write your message…" required className="input" />
+          <p className="text-xs text-zinc-500">
+            {threaded ? 'Continues the existing email thread. ' : ''}Goes out from your Gmail and is logged as a pitch here.
+          </p>
+          <button className="btn btn-primary w-full">{threaded ? 'Send reply' : 'Send email'}</button>
+        </>
+      )}
+    </form>
+  );
+}
 
 function Field({ label, value }: { label: string; value: string | null | undefined }) {
   return (

@@ -1,7 +1,10 @@
-// Minimal Google OAuth + Gmail REST client (read-only). Plain fetch keeps the bundle small.
+// Minimal Google OAuth + Gmail REST client. Plain fetch keeps the bundle small.
 
 export const STATE_COOKIE = 'gmail_oauth_state';
 export const GMAIL_SCOPE = 'https://www.googleapis.com/auth/gmail.readonly';
+// Lets the CRM send mail as the connected user (compose/reply in-app). Added after the
+// read-only scope, so anyone who connected before this needs to Reconnect to grant it.
+export const GMAIL_SEND_SCOPE = 'https://www.googleapis.com/auth/gmail.send';
 const AUTH_URL = 'https://accounts.google.com/o/oauth2/v2/auth';
 const TOKEN_URL = 'https://oauth2.googleapis.com/token';
 const REVOKE_URL = 'https://oauth2.googleapis.com/revoke';
@@ -28,7 +31,7 @@ export function authUrl(redirectUri: string, state: string) {
     client_id: process.env.GOOGLE_CLIENT_ID!,
     redirect_uri: redirectUri,
     response_type: 'code',
-    scope: `openid email ${GMAIL_SCOPE}`,
+    scope: `openid email ${GMAIL_SCOPE} ${GMAIL_SEND_SCOPE}`,
     access_type: 'offline',
     prompt: 'consent', // always return a refresh token
     include_granted_scopes: 'true',
@@ -158,6 +161,11 @@ export class Gmail {
     });
   }
 
+  // Fetch specific headers (e.g. Message-ID, References) that the default metadata set omits.
+  messageHeaders(id: string, names: string[]) {
+    return this.get<GmailMessage>(`/messages/${id}`, { format: 'metadata', metadataHeaders: names });
+  }
+
   thread(id: string) {
     return this.get<{ id: string; messages?: GmailMessage[] }>(`/threads/${id}`, {
       format: 'metadata',
@@ -186,6 +194,48 @@ export class Gmail {
     } while (pageToken);
     return { added, historyId };
   }
+
+  // Send a prebuilt base64url MIME message. Pass threadId to append to an existing thread
+  // (Gmail keeps it threaded when In-Reply-To/References point at a message in that thread).
+  async send(rawBase64Url: string, threadId?: string) {
+    const res = await fetch(`${API}/messages/send`, {
+      method: 'POST',
+      headers: { authorization: `Bearer ${this.accessToken}`, 'content-type': 'application/json' },
+      body: JSON.stringify(threadId ? { raw: rawBase64Url, threadId } : { raw: rawBase64Url }),
+    });
+    if (!res.ok) throw new GmailApiError(res.status, `Gmail send: ${res.status} ${await res.text()}`);
+    return (await res.json()) as { id: string; threadId: string };
+  }
+}
+
+// RFC 2822 headers are ASCII; encode any non-ASCII subject as an RFC 2047 word.
+function encodeHeaderWord(value: string) {
+  return /^[\x20-\x7e]*$/.test(value) ? value : `=?UTF-8?B?${Buffer.from(value, 'utf8').toString('base64')}?=`;
+}
+
+// Build a plain-text email as a base64url MIME string for Gmail's send endpoint. Body is
+// base64 so any UTF-8 content survives; reply headers thread it into an existing conversation.
+export function buildRawEmail(opts: {
+  from: string;
+  to: string;
+  subject: string;
+  text: string;
+  inReplyTo?: string | null;
+  references?: string | null;
+}) {
+  const headers = [
+    `From: ${opts.from}`,
+    `To: ${opts.to}`,
+    `Subject: ${encodeHeaderWord(opts.subject)}`,
+    'MIME-Version: 1.0',
+    'Content-Type: text/plain; charset="UTF-8"',
+    'Content-Transfer-Encoding: base64',
+  ];
+  if (opts.inReplyTo) headers.push(`In-Reply-To: ${opts.inReplyTo}`);
+  if (opts.references || opts.inReplyTo) headers.push(`References: ${[opts.references, opts.inReplyTo].filter(Boolean).join(' ')}`);
+  const body = Buffer.from(opts.text, 'utf8').toString('base64').replace(/(.{76})/g, '$1\r\n');
+  const mime = `${headers.join('\r\n')}\r\n\r\n${body}`;
+  return Buffer.from(mime, 'utf8').toString('base64url');
 }
 
 // ---- message helpers ----

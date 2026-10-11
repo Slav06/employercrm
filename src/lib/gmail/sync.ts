@@ -21,7 +21,8 @@ const STALE_MS = 5 * 60_000;
 
 type Ctx = { acc: GmailAccount; gmail: Gmail; me: string };
 
-async function accessToken(acc: GmailAccount) {
+// Exported so Server Actions can get a live token to send mail; refreshes and persists as needed.
+export async function accessToken(acc: GmailAccount) {
   if (acc.accessToken && acc.accessTokenExpiresAt && acc.accessTokenExpiresAt.getTime() > Date.now() + 60_000) {
     return acc.accessToken;
   }

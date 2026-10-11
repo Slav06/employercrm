@@ -35,9 +35,14 @@ export default async function Settings({ searchParams }: PageProps<'/settings'>)
         <h2 className="text-sm font-semibold">Gmail</h2>
         <p className="text-sm text-zinc-500">
           Connect your company Gmail so the CRM logs your pitches to Craigslist listings and the replies you get —
-          no manual logging. Access is read-only, and only emails about listings are saved (the last {BACKFILL_DAYS}{' '}
-          days, then new ones every few minutes).
+          and lets you send and reply from a lead’s page, out of your own inbox. Only emails about listings are read
+          and saved (the last {BACKFILL_DAYS} days, then new ones every few minutes).
         </p>
+        {acc && (
+          <p className="rounded-md bg-amber-50 px-3 py-2 text-sm text-amber-800">
+            Sending is new — if you can’t send from a lead yet, click <b>Reconnect</b> below and allow “Send email on your behalf”.
+          </p>
+        )}
         {notice && (
           <p className={`rounded-md px-3 py-2 text-sm ${notice[0] === 'ok' ? 'bg-emerald-50 text-emerald-800' : 'bg-red-50 text-red-700'}`}>
             {notice[1]}
