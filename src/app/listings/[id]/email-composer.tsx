@@ -94,10 +94,10 @@ export function EmailComposer({
             name="body"
             value={bodyText}
             onChange={(e) => setBodyText(e.target.value)}
-            rows={7}
+            rows={16}
             placeholder="Write your message, or insert a template above…"
             required
-            className="input font-sans"
+            className="input min-h-[24rem] resize-y font-sans leading-relaxed"
           />
           <p className="text-xs text-zinc-500">
             {threaded ? 'Continues the existing email thread. ' : ''}Goes out from your Gmail and is logged as a pitch here.

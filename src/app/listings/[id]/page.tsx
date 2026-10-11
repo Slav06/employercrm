@@ -96,7 +96,7 @@ export default async function ListingPage({ params }: PageProps<'/listings/[id]'
         </a>
       </div>
 
-      <div className="grid gap-4 lg:grid-cols-[1fr_380px]">
+      <div className="grid gap-4 lg:grid-cols-[1fr_440px]">
         <div className="space-y-4">
           <div className="card grid grid-cols-2 gap-3 text-sm md:grid-cols-4">
             <Field label="Pay" value={l.compensation} />
